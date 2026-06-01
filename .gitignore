@@ -1,0 +1,28 @@
+# ─── Dependencies ───
+node_modules/
+backend/venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# ─── Build output ───
+frontend/dist/
+frontend/.vite/
+
+# ─── Database (regenerated on startup) ───
+backend/laws.db
+
+# ─── Environment secrets ───
+backend/.env
+.env.local
+
+# ─── Large source PDFs (not needed in repo) ───
+backend/law_pdfs/*.pdf
+backend/downloaded_laws/
+
+# ─── OS / Editor ───
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

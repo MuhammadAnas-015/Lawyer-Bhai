@@ -2,6 +2,7 @@
 NLP Laws Engine — keyword + TF-IDF matching against Pakistani law database.
 No paid API needed. Runs 100% locally.
 """
+import os
 import re
 import sqlite3
 import json
@@ -119,7 +120,20 @@ def init_db():
     # Seed if empty
     cur.execute("SELECT COUNT(*) FROM laws")
     if cur.fetchone()[0] == 0:
-        for law in LAWS_DATA:
+        # Prefer the full exported seed (1000+ laws incl. PPC).
+        # Fall back to the built-in LAWS_DATA if the JSON file is absent.
+        seed = LAWS_DATA
+        seed_path = os.path.join(os.path.dirname(__file__), "laws_seed.json")
+        if os.path.exists(seed_path):
+            try:
+                with open(seed_path, "r", encoding="utf-8") as f:
+                    seed = json.load(f)
+                print(f"[init_db] Loading {len(seed)} laws from laws_seed.json")
+            except Exception as e:
+                print(f"[init_db] laws_seed.json failed ({e}); using built-in LAWS_DATA")
+                seed = LAWS_DATA
+
+        for law in seed:
             cur.execute("""
                 INSERT INTO laws (act_name,act_short,section_num,title,text_en,category,sub_cat,keywords,punishment,bailable,severity)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?)

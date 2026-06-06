@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "./Icon";
 
-const TopBar = ({ lang, setLang, onSignOut, onProfile, user = {} }) => {
+const TopBar = ({ lang, setLang, onSignOut, onProfile, onSettings, user = {} }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const firstName = user.name ? user.name.split(" ")[0] : "Aap";
@@ -61,7 +61,7 @@ const TopBar = ({ lang, setLang, onSignOut, onProfile, user = {} }) => {
               <div className="user-dropdown-item" onClick={() => { setOpen(false); onProfile(); }}>
                 <Icon name="user" size={16} color="currentColor" strokeWidth={2} /> My Profile
               </div>
-              <div className="user-dropdown-item" onClick={() => { setOpen(false); onProfile(); }}>
+              <div className="user-dropdown-item" onClick={() => { setOpen(false); onSettings?.(); }}>
                 <Icon name="settings" size={16} color="currentColor" strokeWidth={2} /> Settings
               </div>
               <div className="user-dropdown-divider" />

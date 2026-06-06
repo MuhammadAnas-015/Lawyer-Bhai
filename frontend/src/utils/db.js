@@ -61,3 +61,48 @@ export const docsDB = {
     return { error };
   },
 };
+
+// ─── PROFILE / STATS ───────────────────────────────────────
+export const profileDB = {
+  // Real counts for the profile stats row
+  stats: async () => {
+    const [casesRes, docsRes] = await Promise.all([
+      supabase.from("cases").select("id, status", { count: "exact" }),
+      supabase.from("documents").select("id", { count: "exact" }),
+    ]);
+    const allCases = casesRes.data || [];
+    const activeCases = allCases.filter((c) => c.status === "active").length;
+    return {
+      documents: docsRes.count ?? (docsRes.data?.length || 0),
+      cases: casesRes.count ?? allCases.length,
+      activeCases,
+    };
+  },
+
+  // Profile fields live in auth user_metadata (phone, city)
+  get: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const m = user?.user_metadata || {};
+    return {
+      name: m.full_name || "",
+      email: user?.email || "",
+      phone: m.phone || "",
+      city: m.city || "",
+      createdAt: user?.created_at || null,
+    };
+  },
+
+  update: async ({ name, phone, city }) => {
+    const data = {};
+    if (name !== undefined) data.full_name = name;
+    if (phone !== undefined) data.phone = phone;
+    if (city !== undefined) data.city = city;
+    const { error } = await supabase.auth.updateUser({ data });
+    return { error };
+  },
+
+  changePassword: async (newPassword) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error };
+  },
+};

@@ -5,6 +5,7 @@ import FloatingChat from "./FloatingChat";
 import HomeTab from "./HomeTab";
 import LegalGuideTab from "./LegalGuideTab";
 import ProfileTab from "./ProfileTab";
+import SettingsTab from "./SettingsTab";
 
 // Lazy-loaded tabs
 import { lazy, Suspense } from "react";
@@ -34,6 +35,7 @@ const Dashboard = ({ lang, setLang, onSignOut, user }) => {
       case "my-cases":    return <Suspense fallback={<Loader />}><MyCasesTab /></Suspense>;
       case "find-vakeel": return <Suspense fallback={<Loader />}><FindVakeelTab /></Suspense>;
       case "profile":     return <ProfileTab onSignOut={onSignOut} user={user} />;
+      case "settings":    return <SettingsTab lang={lang} setLang={setLang} onSignOut={onSignOut} user={user} />;
       default:            return <HomeTab onNavigate={setActiveNav} firstName={firstName} />;
     }
   };
@@ -41,7 +43,8 @@ const Dashboard = ({ lang, setLang, onSignOut, user }) => {
   return (
     <div className={`app${isUr ? " is-rtl" : ""}`}>
       <TopBar lang={lang} setLang={setLang} onSignOut={onSignOut}
-        onProfile={() => setActiveNav("profile")} user={user} />
+        onProfile={() => setActiveNav("profile")}
+        onSettings={() => setActiveNav("settings")} user={user} />
       <div className="shell">
         <Sidebar active={activeNav} onSelect={setActiveNav} />
         <main className="main">{renderMain()}</main>

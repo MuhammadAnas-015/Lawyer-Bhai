@@ -1,8 +1,10 @@
 import { useState } from "react";
 import Icon from "./Icon";
 import { profileDB } from "../utils/db";
+import { useT } from "../utils/i18n.jsx";
 
 const SettingsTab = ({ lang, setLang, onSignOut, user = {} }) => {
+  const { t } = useT();
   const [pw, setPw] = useState({ next: "", confirm: "" });
   const [pwMsg, setPwMsg] = useState({ type: "", text: "" });
   const [pwSaving, setPwSaving] = useState(false);
@@ -10,13 +12,13 @@ const SettingsTab = ({ lang, setLang, onSignOut, user = {} }) => {
 
   const changePassword = async () => {
     setPwMsg({ type: "", text: "" });
-    if (pw.next.length < 6) { setPwMsg({ type: "err", text: "Password kam az kam 6 characters ka ho." }); return; }
-    if (pw.next !== pw.confirm) { setPwMsg({ type: "err", text: "Dono passwords match nahi karte." }); return; }
+    if (pw.next.length < 6) { setPwMsg({ type: "err", text: t("set.pwShort") }); return; }
+    if (pw.next !== pw.confirm) { setPwMsg({ type: "err", text: t("set.pwMismatch") }); return; }
     setPwSaving(true);
     const { error } = await profileDB.changePassword(pw.next);
     setPwSaving(false);
     if (error) setPwMsg({ type: "err", text: error.message });
-    else { setPwMsg({ type: "ok", text: "Password badal gaya!" }); setPw({ next: "", confirm: "" }); }
+    else { setPwMsg({ type: "ok", text: t("set.pwChanged") }); setPw({ next: "", confirm: "" }); }
   };
 
   const Section = ({ title, children }) => (
@@ -37,11 +39,11 @@ const SettingsTab = ({ lang, setLang, onSignOut, user = {} }) => {
 
   return (
     <div className="profile-wrap">
-      <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>Settings</h1>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6B7280" }}>Apni app aur account settings manage karein</p>
+      <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{t("set.title")}</h1>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6B7280" }}>{t("set.subtitle")}</p>
 
       {/* Language */}
-      <Section title="Language / Zaban">
+      <Section title={t("set.language")}>
         <div style={{ display: "flex", gap: 10 }}>
           {[["en", "English"], ["ur", "اردو"]].map(([code, label]) => (
             <button key={code} onClick={() => setLang(code)}
@@ -59,28 +61,28 @@ const SettingsTab = ({ lang, setLang, onSignOut, user = {} }) => {
       </Section>
 
       {/* Notifications */}
-      <Section title="Notifications">
+      <Section title={t("set.notifications")}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #F9FAFB" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>Email Notifications</div>
-            <div style={{ fontSize: 12, color: "#9CA3AF" }}>Case updates aur reminders email pe</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{t("set.emailNotif")}</div>
+            <div style={{ fontSize: 12, color: "#9CA3AF" }}>{t("set.emailNotifDesc")}</div>
           </div>
           <Toggle on={notif.email} onClick={() => setNotif((n) => ({ ...n, email: !n.email }))} />
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 0" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>Product Updates</div>
-            <div style={{ fontSize: 12, color: "#9CA3AF" }}>Naye features aur khabrein</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{t("set.productUpdates")}</div>
+            <div style={{ fontSize: 12, color: "#9CA3AF" }}>{t("set.productUpdatesDesc")}</div>
           </div>
           <Toggle on={notif.updates} onClick={() => setNotif((n) => ({ ...n, updates: !n.updates }))} />
         </div>
       </Section>
 
       {/* Change Password */}
-      <Section title="Change Password">
-        <input className="lb-input" style={{ width: "100%", marginBottom: 10 }} type="password" placeholder="Naya password (6+ characters)"
+      <Section title={t("set.changePw")}>
+        <input className="lb-input" style={{ width: "100%", marginBottom: 10 }} type="password" placeholder={t("set.newPw")}
           value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} />
-        <input className="lb-input" style={{ width: "100%", marginBottom: 12 }} type="password" placeholder="Password dobara likhein"
+        <input className="lb-input" style={{ width: "100%", marginBottom: 12 }} type="password" placeholder={t("set.confirmPw")}
           value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} />
         {pwMsg.text && (
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, padding: "8px 12px", borderRadius: 8,
@@ -90,19 +92,19 @@ const SettingsTab = ({ lang, setLang, onSignOut, user = {} }) => {
           </div>
         )}
         <button className="lb-btn lb-btn--primary" style={{ width: "100%" }} onClick={changePassword} disabled={pwSaving || !pw.next}>
-          {pwSaving ? "Updating…" : "Update Password"}
+          {pwSaving ? t("set.updating") : t("set.updatePw")}
         </button>
       </Section>
 
       {/* Account */}
-      <Section title="Account">
+      <Section title={t("set.account")}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0" }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>Signed in as</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "#0F172A" }}>{t("set.signedInAs")}</div>
             <div style={{ fontSize: 13, color: "#6B7280" }}>{user.email}</div>
           </div>
           <button onClick={onSignOut} style={{ background: "#FEF2F2", color: "#EF4444", border: "1.5px solid #FECACA", borderRadius: 10, padding: "8px 16px", fontWeight: 700, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-            <Icon name="log-out" size={14} color="currentColor" strokeWidth={2} /> Sign Out
+            <Icon name="log-out" size={14} color="currentColor" strokeWidth={2} /> {t("menu.signout")}
           </button>
         </div>
       </Section>

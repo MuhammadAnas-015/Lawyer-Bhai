@@ -1,4 +1,11 @@
 import { useState } from "react";
+import { useT } from "../utils/i18n.jsx";
+
+const CAT_KEY = {
+  All: "cat.all", Criminal: "cat.criminal", Civil: "cat.civil",
+  Constitutional: "cat.constitutional", Family: "cat.family",
+  Property: "cat.property", Labor: "cat.labor",
+};
 
 const BOOKS = [
   { name: "Pakistan Penal Code", year: "1860", cat: "Criminal", desc: "Pakistan ka bunyadi criminal law — crimes aur unki sazaon ka mukamal collection.", sections: ["Sec 302", "Sec 420", "Sec 506", "Sec 354"] },
@@ -24,6 +31,7 @@ const CAT_COLORS = {
 };
 
 const LawBookTab = () => {
+  const { t } = useT();
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState("All");
   const [expanded, setExpanded] = useState(null);
@@ -35,16 +43,16 @@ const LawBookTab = () => {
 
   return (
     <div className="lb-tab">
-      <h1>Law Book</h1>
-      <p>Pakistan ke bunyadi qawaneen — search karein ya category chunein</p>
+      <h1>{t("lb.title")}</h1>
+      <p>{t("lb.subtitle")}</p>
 
       <div className="lb-search-row">
-        <input className="lb-search" placeholder="Law search karein…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input className="lb-search" placeholder={t("lb.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
       <div className="lb-cat-row">
         {CATS.map((c) => (
-          <button key={c} className={`lb-cat${cat === c ? " active" : ""}`} onClick={() => setCat(c)}>{c}</button>
+          <button key={c} className={`lb-cat${cat === c ? " active" : ""}`} onClick={() => setCat(c)}>{t(CAT_KEY[c] || "cat.all")}</button>
         ))}
       </div>
 

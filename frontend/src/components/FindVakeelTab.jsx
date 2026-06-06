@@ -1,5 +1,11 @@
 import { useState } from "react";
 import Icon from "./Icon";
+import { useT } from "../utils/i18n.jsx";
+
+const SPEC_KEY = {
+  All: "cat.all", Criminal: "cat.criminal", Family: "cat.family",
+  Property: "cat.property", Corporate: "fv.corporate", Employment: "fv.employment",
+};
 
 const VAKEELS = [
   { name: "Adv. Tariq Mahmood", spec: "Criminal Law", city: "Karachi", exp: "15 yrs", rating: "4.9", cases: 120, initial: "T" },
@@ -13,17 +19,18 @@ const VAKEELS = [
 const SPECS = ["All", "Criminal", "Family", "Property", "Corporate", "Employment"];
 
 const FindVakeelTab = () => {
+  const { t } = useT();
   const [filter, setFilter] = useState("All");
   const filtered = VAKEELS.filter((v) => filter === "All" || v.spec.includes(filter));
 
   return (
     <div className="fv-wrap" style={{ padding: "32px 36px", maxWidth: 780 }}>
-      <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>Find Vakeel</h1>
-      <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6B7280" }}>Apne masle ke liye tajurbakar vakeel dhundhein</p>
+      <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{t("fv.title")}</h1>
+      <p style={{ margin: "0 0 24px", fontSize: 14, color: "#6B7280" }}>{t("fv.subtitle")}</p>
 
       <div className="fv-filter-row" style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
         {SPECS.map((s) => (
-          <button key={s} className={`lb-cat${filter === s ? " active" : ""}`} onClick={() => setFilter(s)}>{s}</button>
+          <button key={s} className={`lb-cat${filter === s ? " active" : ""}`} onClick={() => setFilter(s)}>{t(SPEC_KEY[s] || "cat.all")}</button>
         ))}
       </div>
 
@@ -45,15 +52,15 @@ const FindVakeelTab = () => {
               <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Icon name="map-pin" size={13} color="#9CA3AF" /> {v.city}
               </span>
-              <span>{v.exp} experience</span>
-              <span>{v.cases} cases</span>
+              <span>{v.exp} {t("fv.experience")}</span>
+              <span>{v.cases} {t("fv.cases")}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <Icon name="star" size={14} color="#F59E0B" />
                 <span style={{ fontWeight: 700, fontSize: 14, color: "#0F172A" }}>{v.rating}</span>
               </div>
-              <button className="lb-btn lb-btn--primary" style={{ fontSize: 12, padding: "6px 16px", borderRadius: 10 }}>Contact</button>
+              <button className="lb-btn lb-btn--primary" style={{ fontSize: 12, padding: "6px 16px", borderRadius: 10 }}>{t("fv.contact")}</button>
             </div>
           </div>
         ))}

@@ -6,6 +6,7 @@ import HomeTab from "./HomeTab";
 import LegalGuideTab from "./LegalGuideTab";
 import ProfileTab from "./ProfileTab";
 import SettingsTab from "./SettingsTab";
+import { LangProvider } from "../utils/i18n.jsx";
 
 // Lazy-loaded tabs
 import { lazy, Suspense } from "react";
@@ -41,16 +42,18 @@ const Dashboard = ({ lang, setLang, onSignOut, user }) => {
   };
 
   return (
-    <div className={`app${isUr ? " is-rtl" : ""}`}>
-      <TopBar lang={lang} setLang={setLang} onSignOut={onSignOut}
-        onProfile={() => setActiveNav("profile")}
-        onSettings={() => setActiveNav("settings")} user={user} />
-      <div className="shell">
-        <Sidebar active={activeNav} onSelect={setActiveNav} />
-        <main className="main">{renderMain()}</main>
+    <LangProvider lang={lang}>
+      <div className={`app${isUr ? " is-rtl" : ""}`} dir={isUr ? "rtl" : "ltr"}>
+        <TopBar lang={lang} setLang={setLang} onSignOut={onSignOut}
+          onProfile={() => setActiveNav("profile")}
+          onSettings={() => setActiveNav("settings")} user={user} />
+        <div className="shell">
+          <Sidebar active={activeNav} onSelect={setActiveNav} />
+          <main className="main">{renderMain()}</main>
+        </div>
+        <FloatingChat lang={lang} />
       </div>
-      <FloatingChat />
-    </div>
+    </LangProvider>
   );
 };
 

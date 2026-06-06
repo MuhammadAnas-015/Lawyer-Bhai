@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import Icon from "./Icon";
+import { useT } from "../utils/i18n.jsx";
 
 const TopBar = ({ lang, setLang, onSignOut, onProfile, onSettings, user = {} }) => {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const firstName = user.name ? user.name.split(" ")[0] : "Aap";
@@ -59,14 +61,14 @@ const TopBar = ({ lang, setLang, onSignOut, onProfile, onSettings, user = {} }) 
                 </div>
               </div>
               <div className="user-dropdown-item" onClick={() => { setOpen(false); onProfile(); }}>
-                <Icon name="user" size={16} color="currentColor" strokeWidth={2} /> My Profile
+                <Icon name="user" size={16} color="currentColor" strokeWidth={2} /> {t("menu.profile")}
               </div>
               <div className="user-dropdown-item" onClick={() => { setOpen(false); onSettings?.(); }}>
-                <Icon name="settings" size={16} color="currentColor" strokeWidth={2} /> Settings
+                <Icon name="settings" size={16} color="currentColor" strokeWidth={2} /> {t("menu.settings")}
               </div>
               <div className="user-dropdown-divider" />
               <div className="user-dropdown-item user-dropdown-item--danger" onClick={() => { setOpen(false); onSignOut(); }}>
-                <Icon name="log-out" size={16} color="currentColor" strokeWidth={2} /> Sign Out
+                <Icon name="log-out" size={16} color="currentColor" strokeWidth={2} /> {t("menu.signout")}
               </div>
             </div>
           )}

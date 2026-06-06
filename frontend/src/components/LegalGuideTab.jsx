@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../utils/api";
+import { useT, detectTextLang } from "../utils/i18n.jsx";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -25,6 +26,7 @@ const MOCK_ADVICE = {
 };
 
 const LegalGuideTab = ({ lang }) => {
+  const { t } = useT();
   const [caseText, setCaseText] = useState("");
   const [status, setStatus] = useState("idle");
   const [result, setResult] = useState(null);
@@ -52,7 +54,9 @@ const LegalGuideTab = ({ lang }) => {
     }
 
     try {
-      const data = await api.analyze(caseText);
+      // Reply language: if UI is Urdu use Urdu, else detect from what user wrote
+      const replyLang = lang === "ur" ? "ur" : detectTextLang(caseText);
+      const data = await api.analyze(caseText, replyLang);
       const laws = (data.matched_laws || []).map((l) => ({
         code: l.act_name, section: l.section_num,
         desc: (l.text_en || l.title || "").slice(0, 160) + "…",
@@ -73,27 +77,27 @@ const LegalGuideTab = ({ lang }) => {
   return (
     <div className="lg-wrap">
       <div className="lg-header">
-        <h1>Legal Guide — Mashwara</h1>
-        <p>Apna case ya masla describe karein — AI Pakistani laws se match karke aapko mashwara dega</p>
+        <h1>{t("lg.title")}</h1>
+        <p>{t("lg.subtitle")}</p>
       </div>
 
       <div className="lg-input-box">
-        <label>Apna Masla Likhein</label>
+        <label>{t("lg.inputLabel")}</label>
         <textarea className="lg-textarea" value={caseText} onChange={(e) => setCaseText(e.target.value)}
-          placeholder="Mithaal: Mera makan maalik bina notice ke kiraya 30% barhana chahta hai…" rows={5} />
+          placeholder={t("lg.placeholder")} rows={5} />
         <button className="lb-btn lb-btn--primary lg-submit" onClick={handleSubmit}
           disabled={status === "processing" || !caseText.trim()}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 8, verticalAlign: "middle" }}>
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          {status === "processing" ? "Dhoondh raha hai…" : "Qanoon Dhundhein"}
+          {status === "processing" ? t("lg.searching") : t("lg.searchBtn")}
         </button>
       </div>
 
       {status === "processing" && (
         <div className="lg-processing">
           <div className="lg-processing-dot"/><div className="lg-processing-dot"/><div className="lg-processing-dot"/>
-          Pakistani laws mein match dhoondha ja raha hai…
+          {t("lg.processing")}
         </div>
       )}
 
@@ -102,10 +106,10 @@ const LegalGuideTab = ({ lang }) => {
           {result.accuracy && (
             <div className="lg-accuracy-card">
               <div className="lg-accuracy-left">
-                <div className="lg-accuracy-label">Aapke Haq Mein Imkaan</div>
+                <div className="lg-accuracy-label">{t("lg.winChance")}</div>
                 <div className="lg-accuracy-pct">{result.accuracy.win_pct}<span>%</span></div>
                 <div className={`lg-accuracy-badge lg-accuracy-badge--${result.accuracy.confidence.toLowerCase()}`}>
-                  {result.accuracy.confidence} Confidence
+                  {result.accuracy.confidence} {t("lg.confidence")}
                 </div>
               </div>
               <div className="lg-accuracy-right">
@@ -117,14 +121,14 @@ const LegalGuideTab = ({ lang }) => {
 
           <div className="lg-result-head">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <h3>AI Mashwara</h3>
-            {result.mode === "mock" && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600, marginLeft: 8 }}>⚠ Demo mode</span>}
+            <h3>{t("lg.aiAdvice")}</h3>
+            {result.mode === "mock" && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600, marginLeft: 8 }}>⚠ {t("lg.demoMode")}</span>}
           </div>
           <div className="lg-mashwara">{result.mashwara}</div>
 
           {result.laws?.length > 0 && (
             <div className="lg-laws">
-              <div className="lg-laws-title">Mutaalliq Qanoon (Matched Laws)</div>
+              <div className="lg-laws-title">{t("lg.matchedLaws")}</div>
               {result.laws.map((law, i) => (
                 <div key={i} className="lg-law-item">
                   <div className="lg-law-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="#0E7A45"><path d="M5 3h11l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg></div>
@@ -132,7 +136,7 @@ const LegalGuideTab = ({ lang }) => {
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
                       <span className="lg-law-code">{law.code}</span>
                       <span className="lg-law-section">{law.section}</span>
-                      <span className={`lg-confidence lg-confidence--${law.conf}`}>{law.conf === "high" ? "High Match" : "Possible"}</span>
+                      <span className={`lg-confidence lg-confidence--${law.conf}`}>{law.conf === "high" ? t("lg.highMatch") : t("lg.possible")}</span>
                       {law.severity && <span className={`lg-confidence lg-confidence--${law.severity === "High" ? "high" : "med"}`}>{law.severity}</span>}
                     </div>
                     <div className="lg-law-desc">{law.desc}</div>

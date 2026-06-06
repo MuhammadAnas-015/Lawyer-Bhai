@@ -1,20 +1,20 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export const api = {
-  analyze: async (text) => {
+  analyze: async (text, replyLang = "en") => {
     const res = await fetch(`${API_BASE}/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, reply_lang: replyLang }),
     });
     if (!res.ok) throw new Error("API error");
     return res.json();
   },
-  chat: async (message, history = []) => {
+  chat: async (message, history = [], replyLang = "en") => {
     const res = await fetch(`${API_BASE}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify({ message, history, reply_lang: replyLang }),
     });
     if (!res.ok) throw new Error("API error");
     return res.json();

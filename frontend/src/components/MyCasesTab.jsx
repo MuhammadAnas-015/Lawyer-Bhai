@@ -1,11 +1,6 @@
 import { useState, useEffect } from "react";
 import { casesDB } from "../utils/db";
-
-const STATUS_STYLES = {
-  active:  { bg: "#DCFCE7", text: "#166534", label: "Active" },
-  pending: { bg: "#FEF3C7", text: "#92400E", label: "Pending" },
-  closed:  { bg: "#F3F4F6", text: "#374151", label: "Closed" },
-};
+import { useT } from "../utils/i18n.jsx";
 
 const CATEGORIES = ["General", "Criminal", "Civil", "Family", "Property", "Labor", "Consumer"];
 
@@ -15,6 +10,12 @@ const fmtDate = (iso) => {
 };
 
 const MyCasesTab = () => {
+  const { t } = useT();
+  const STATUS_STYLES = {
+    active:  { bg: "#DCFCE7", text: "#166534", label: t("status.active") },
+    pending: { bg: "#FEF3C7", text: "#92400E", label: t("status.pending") },
+    closed:  { bg: "#F3F4F6", text: "#374151", label: t("status.closed") },
+  };
   const [filter, setFilter] = useState("all");
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,23 +73,22 @@ const MyCasesTab = () => {
     <div className="cases-wrap" style={{ padding: "32px 36px", maxWidth: 720 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
         <div>
-          <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>My Cases</h1>
-          <p style={{ margin: 0, fontSize: 14, color: "#6B7280" }}>Apne qanooni cases track karein</p>
+          <h1 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{t("cases.title")}</h1>
+          <p style={{ margin: 0, fontSize: 14, color: "#6B7280" }}>{t("cases.subtitle")}</p>
         </div>
-        <button className="lb-btn lb-btn--primary" style={{ fontSize: 13 }} onClick={() => setShowModal(true)}>+ New Case</button>
+        <button className="lb-btn lb-btn--primary" style={{ fontSize: 13 }} onClick={() => setShowModal(true)}>{t("cases.new")}</button>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
         {["all", "active", "pending", "closed"].map((s) => (
-          <button key={s} className={`lb-cat${filter === s ? " active" : ""}`} onClick={() => setFilter(s)}
-            style={{ textTransform: "capitalize" }}>{s === "all" ? "All" : STATUS_STYLES[s].label}</button>
+          <button key={s} className={`lb-cat${filter === s ? " active" : ""}`} onClick={() => setFilter(s)}>{s === "all" ? t("cat.all") : STATUS_STYLES[s].label}</button>
         ))}
       </div>
 
       {loading ? (
         <div style={{ textAlign: "center", padding: 48, color: "#9CA3AF" }}>
           <div className="char-3d-spinner" style={{ margin: "0 auto 12px" }} />
-          Cases load ho rahe hain…
+          {t("cases.loading")}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -107,22 +107,22 @@ const MyCasesTab = () => {
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
                     <span onClick={() => cycleStatus(c)} title="Status change karne ke liye click karein"
                       style={{ fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 20, background: st.bg, color: st.text, cursor: "pointer" }}>{st.label}</span>
-                    <button onClick={() => handleDelete(c.id)} title="Delete"
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "#EF4444", fontSize: 12, fontWeight: 600, padding: 0 }}>Delete</button>
+                    <button onClick={() => handleDelete(c.id)} title={t("cases.delete")}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#EF4444", fontSize: 12, fontWeight: 600, padding: 0 }}>{t("cases.delete")}</button>
                   </div>
                 </div>
                 <div style={{ height: 6, background: "#F3F4F6", borderRadius: 99, overflow: "hidden" }}>
                   <div style={{ height: "100%", width: `${c.progress}%`, background: c.status === "closed" ? "#9CA3AF" : "#0E7A45", borderRadius: 99, transition: "width 0.6s ease" }} />
                 </div>
-                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>{c.progress}% complete</div>
+                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>{c.progress}% {t("cases.complete")}</div>
               </div>
             );
           })}
           {filtered.length === 0 && (
             <div style={{ textAlign: "center", padding: "48px 20px", color: "#9CA3AF" }}>
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ marginBottom: 12 }}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
-              <p style={{ margin: "0 0 4px", fontWeight: 600 }}>Abhi koi case nahi</p>
-              <p style={{ margin: 0, fontSize: 13 }}>"+ New Case" se apna pehla case add karein</p>
+              <p style={{ margin: "0 0 4px", fontWeight: 600 }}>{t("cases.empty")}</p>
+              <p style={{ margin: 0, fontSize: 13 }}>{t("cases.emptyHint")}</p>
             </div>
           )}
         </div>
@@ -132,37 +132,37 @@ const MyCasesTab = () => {
       {showModal && (
         <div onClick={() => setShowModal(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 18, padding: 28, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
-            <h2 style={{ margin: "0 0 18px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>Naya Case</h2>
+            <h2 style={{ margin: "0 0 18px", fontSize: 20, fontWeight: 800, color: "#0F172A" }}>{t("cases.modalTitle")}</h2>
 
-            <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>Case Title *</label>
-            <input className="lb-input" style={{ width: "100%", marginBottom: 14 }} placeholder="Mithaal: Makan maalik kiraya dispute"
+            <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>{t("cases.fTitle")}</label>
+            <input className="lb-input" style={{ width: "100%", marginBottom: 14 }} placeholder={t("cases.fTitlePh")}
               value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} autoFocus />
 
-            <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>Tafseel (optional)</label>
+            <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>{t("cases.fDesc")}</label>
             <textarea style={{ width: "100%", minHeight: 70, padding: "10px 14px", border: "1.5px solid #D1D5DB", borderRadius: 10, fontFamily: "inherit", fontSize: 14, resize: "vertical", marginBottom: 14, boxSizing: "border-box" }}
-              placeholder="Case ke baare mein…" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              placeholder={t("cases.fDescPh")} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
 
             <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
               <div style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>Category</label>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>{t("cases.fCategory")}</label>
                 <select className="lb-input" style={{ width: "100%" }} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
                   {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>Status</label>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#374151", marginBottom: 6 }}>{t("cases.fStatus")}</label>
                 <select className="lb-input" style={{ width: "100%" }} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="closed">Closed</option>
+                  <option value="active">{t("status.active")}</option>
+                  <option value="pending">{t("status.pending")}</option>
+                  <option value="closed">{t("status.closed")}</option>
                 </select>
               </div>
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button className="lb-btn" style={{ flex: 1, background: "#F3F4F6", color: "#374151" }} onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="lb-btn" style={{ flex: 1, background: "#F3F4F6", color: "#374151" }} onClick={() => setShowModal(false)}>{t("profile.cancel")}</button>
               <button className="lb-btn lb-btn--primary" style={{ flex: 1 }} onClick={handleAdd} disabled={saving || !form.title.trim()}>
-                {saving ? "Saving…" : "Add Case"}
+                {saving ? t("cases.saving") : t("cases.add")}
               </button>
             </div>
           </div>

@@ -673,11 +673,11 @@ html, body { margin: 0; padding: 0; background: #fff; }
   display: flex; align-items: center; justify-content: center;
 }
 .fchat-window {
-  position: fixed; bottom: 100px; right: 28px; z-index: 9998;
-  width: 400px; background: #fff; border-radius: 20px;
-  box-shadow: 0 16px 56px rgba(0,0,0,0.18);
+  position: fixed; bottom: 90px; right: 28px; z-index: 9998;
+  width: 480px; background: #fff; border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08);
   display: flex; flex-direction: column; overflow: hidden;
-  animation: fchatIn 200ms cubic-bezier(0.34,1.56,0.64,1);
+  animation: fchatIn 220ms cubic-bezier(0.34,1.56,0.64,1);
 }
 @keyframes fchatIn { from { opacity:0; transform: translateY(16px) scale(0.95); } to { opacity:1; transform: translateY(0) scale(1); } }
 .fchat-head {
@@ -1171,6 +1171,6 @@ html, body { margin: 0; padding: 0; background: #fff; }
   .docs-grid { grid-template-columns: 1fr 1fr; }
   /* Reset mobile floating-chat position on tablet */
   .fchat-trigger { bottom: 28px; right: 28px; }
-  .fchat-window { bottom: 100px; right: 28px; left: auto; width: 400px; }
+  .fchat-window { bottom: 90px; right: 28px; left: auto; width: 480px; }
   .user-dropdown { position: absolute; top: calc(100% + 10px); bottom: auto; right: 0; left: auto; min-width: 220px; }
 }

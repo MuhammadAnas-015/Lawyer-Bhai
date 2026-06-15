@@ -11,7 +11,7 @@ const detectLang = (text) => {
   return hits >= 2 ? "roman-ur" : "en";
 };
 
-// Markdown renderer: **bold**, *italic*, bullet lists, line breaks
+// Full markdown renderer: **bold**, *italic*, # headings, bullets, numbered lists, line breaks
 const renderMd = (text) => {
   if (!text) return null;
   const lines = text.split("\n");
@@ -20,36 +20,58 @@ const renderMd = (text) => {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
     if (line.trim() === "") {
-      elements.push(<br key={key++} />);
+      if (elements.length > 0) elements.push(<div key={key++} style={{ height: 6 }} />);
       continue;
     }
-    const bulletMatch = line.match(/^[-*•]\s+(.+)/);
-    if (bulletMatch) {
+
+    // Heading
+    const h2 = line.match(/^##\s+(.+)/);
+    const h3 = line.match(/^###\s+(.+)/);
+    if (h2) { elements.push(<div key={key++} style={{ fontWeight: 800, fontSize: 13, color: "#0E7A45", marginTop: 8, marginBottom: 2 }}>{inlineFormat(h2[1])}</div>); continue; }
+    if (h3) { elements.push(<div key={key++} style={{ fontWeight: 700, fontSize: 12, color: "#1F2937", marginTop: 6, marginBottom: 1 }}>{inlineFormat(h3[1])}</div>); continue; }
+
+    // Numbered list
+    const numMatch = line.match(/^(\d+)\.\s+(.+)/);
+    if (numMatch) {
       elements.push(
-        <div key={key++} style={{ display: "flex", gap: "6px", marginBottom: "3px" }}>
-          <span style={{ color: "#0E7A45", fontWeight: 700, flexShrink: 0 }}>•</span>
-          <span>{inlineFormat(bulletMatch[1])}</span>
+        <div key={key++} style={{ display: "flex", gap: 7, marginBottom: 3 }}>
+          <span style={{ color: "#0E7A45", fontWeight: 800, minWidth: 18, flexShrink: 0, fontSize: 12 }}>{numMatch[1]}.</span>
+          <span style={{ flex: 1 }}>{inlineFormat(numMatch[2])}</span>
         </div>
       );
       continue;
     }
-    elements.push(<div key={key++} style={{ marginBottom: "1px" }}>{inlineFormat(line)}</div>);
+
+    // Bullet list
+    const bulletMatch = line.match(/^[-*•]\s+(.+)/);
+    if (bulletMatch) {
+      elements.push(
+        <div key={key++} style={{ display: "flex", gap: 7, marginBottom: 3 }}>
+          <span style={{ color: "#0E7A45", fontWeight: 800, flexShrink: 0, fontSize: 14, lineHeight: 1.3 }}>•</span>
+          <span style={{ flex: 1 }}>{inlineFormat(bulletMatch[1])}</span>
+        </div>
+      );
+      continue;
+    }
+
+    elements.push(<div key={key++} style={{ marginBottom: 2 }}>{inlineFormat(line)}</div>);
   }
   return elements;
 };
 
 const inlineFormat = (text) => {
   const parts = [];
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
-  let last = 0;
-  let match;
-  let k = 0;
+  const regex = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+  let last = 0, match, k = 0;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > last) parts.push(<span key={k++}>{text.slice(last, match.index)}</span>);
     const raw = match[0];
-    if (raw.startsWith("**")) parts.push(<strong key={k++}>{raw.slice(2, -2)}</strong>);
-    else parts.push(<em key={k++}>{raw.slice(1, -1)}</em>);
+    if (raw.startsWith("***")) parts.push(<strong key={k++}><em>{raw.slice(3, -3)}</em></strong>);
+    else if (raw.startsWith("**")) parts.push(<strong key={k++} style={{ color: "#111827" }}>{raw.slice(2, -2)}</strong>);
+    else if (raw.startsWith("*")) parts.push(<em key={k++}>{raw.slice(1, -1)}</em>);
+    else parts.push(<code key={k++} style={{ background: "#F3F4F6", padding: "1px 5px", borderRadius: 4, fontSize: "0.9em", fontFamily: "monospace" }}>{raw.slice(1, -1)}</code>);
     last = match.index + raw.length;
   }
   if (last < text.length) parts.push(<span key={k++}>{text.slice(last)}</span>);
@@ -57,18 +79,9 @@ const inlineFormat = (text) => {
 };
 
 const FALLBACKS = {
-  en: [
-    "I'm having a connection issue right now, but your legal matter sounds important. Please try again in a moment — I want to give you proper guidance.",
-    "Temporarily offline. Please try again shortly.",
-  ],
-  "roman-ur": [
-    "Abhi connection mein masla aa raha hai. Thodi der baad dobara try karein — aapka masla mujhe zaroor sunna hai.",
-    "Kuch technical masla hai. Please thodi der mein dobara poochein.",
-  ],
-  ur: [
-    "ابھی کنیکشن میں مسئلہ آ رہا ہے۔ تھوڑی دیر بعد دوبارہ کوشش کریں — آپ کا مسئلہ مجھے ضرور سننا ہے۔",
-    "کچھ تکنیکی مسئلہ ہے۔ براہ کرم تھوڑی دیر میں دوبارہ پوچھیں۔",
-  ],
+  en: ["I'm having a connection issue right now. Please try again in a moment — your legal matter is important."],
+  "roman-ur": ["Abhi connection mein masla aa raha hai. Thodi der baad dobara try karein — aapka masla zaroor sunna chahta hun."],
+  ur: ["ابھی کنیکشن میں مسئلہ آ رہا ہے۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔"],
 };
 
 const ProviderBadge = ({ provider }) => {
@@ -76,35 +89,57 @@ const ProviderBadge = ({ provider }) => {
   const isGemini = provider === "gemini";
   return (
     <span style={{
-      fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 8,
-      background: isGemini ? "#E8F0FE" : "#F3E8FF",
-      color: isGemini ? "#1A73E8" : "#7C3AED",
-      marginTop: 4, display: "inline-block",
-      letterSpacing: "0.05em", textTransform: "uppercase"
+      fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10,
+      background: isGemini ? "#EFF6FF" : "#F5F3FF",
+      color: isGemini ? "#2563EB" : "#7C3AED",
+      marginTop: 5, display: "inline-block", letterSpacing: "0.06em", textTransform: "uppercase",
+      border: `1px solid ${isGemini ? "#BFDBFE" : "#DDD6FE"}`
     }}>
       {isGemini ? "✦ Gemini AI" : "⚡ Groq AI"}
     </span>
   );
 };
 
-const QUICK = [
-  { label: "🏠 Kiraya masla", msg: "Mera makan maalik bina notice ke nikal raha hai, kya karna chahiye?" },
-  { label: "💼 Job se nikala", msg: "Employer ne bina notice ke naukri se nikal diya, mere kya rights hain?" },
-  { label: "👨‍👩‍👧 Custody", msg: "Talaq ke baad bachon ki custody kaise milti hai Pakistan mein?" },
-  { label: "💸 Online fraud", msg: "Kisi ne mujhe online fraud kar ke paise le gaya, kya karna chahiye?" },
-  { label: "🏛️ FIR kaise", msg: "FIR kaise darj karate hain aur police refuse kare to kya karein?" },
-  { label: "📋 Contract", msg: "Dusre party ne hamare contract ki khilaaf warzi ki, kya options hain?" },
-];
+const TypingDots = () => (
+  <div style={{ display: "flex", gap: 4, padding: "4px 2px", alignItems: "center" }}>
+    {[0, 1, 2].map(i => (
+      <span key={i} style={{
+        width: 7, height: 7, borderRadius: "50%", background: "#9CA3AF",
+        display: "inline-block",
+        animation: `ftyping 1.2s ${i * 0.2}s infinite ease-in-out`
+      }} />
+    ))}
+  </div>
+);
 
 const FloatingChat = ({ lang = "en" }) => {
   const { t } = useT();
-  const [open, setOpen]   = useState(false);
-  const [msgs, setMsgs]   = useState([{ role: "ai", text: "Assalam o Alaikum! Main Lawyer Bhai hoon — aapka AI legal assistant. Apna masla poochein, main Pakistani qanoon ke mutabiq guide karunga! 🤝", provider: null }]);
-  const [input, setInput] = useState("");
+  const [open, setOpen]     = useState(false);
+  const [msgs, setMsgs]     = useState([{
+    role: "ai",
+    text: "Assalam o Alaikum! 👋 Main LawyerGPT hoon — aapka personal AI lawyer.\n\nApna koi bhi legal masla poochein — FIR, talaq, property, job, fraud, ya kuch bhi. Main Pakistani qanoon ke mutabiq seedha jawab dunga.",
+    provider: null
+  }]);
+  const [input, setInput]   = useState("");
   const [typing, setTyping] = useState(false);
-  const bottomRef = useRef(null);
+  const msgsEndRef  = useRef(null);
+  const lastAiRef   = useRef(null);
+  const msgsBoxRef  = useRef(null);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, typing]);
+  // When user sends or typing indicator: scroll to bottom
+  // When AI reply arrives: scroll to TOP of new message so user reads from start
+  useEffect(() => {
+    const lastMsg = msgs[msgs.length - 1];
+    if (lastMsg?.role === "ai" && msgs.length > 1 && lastAiRef.current) {
+      setTimeout(() => lastAiRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    } else {
+      setTimeout(() => msgsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    }
+  }, [msgs]);
+
+  useEffect(() => {
+    if (typing) setTimeout(() => msgsEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+  }, [typing]);
 
   const send = async () => {
     const txt = input.trim();
@@ -114,7 +149,7 @@ const FloatingChat = ({ lang = "en" }) => {
     setInput("");
     setTyping(true);
     try {
-      const history = msgs.slice(-10).map((m) => ({
+      const history = msgs.slice(-12).map((m) => ({
         role: m.role === "ai" ? "assistant" : "user",
         content: m.text,
       }));
@@ -128,104 +163,170 @@ const FloatingChat = ({ lang = "en" }) => {
     }
   };
 
-  const pickQuick = (msg) => {
-    setInput(msg);
-    setTimeout(() => document.getElementById("fchat-inp")?.focus(), 50);
-  };
-
   return (
     <>
       {open && (
-        <div className="fchat-window" style={{ display: "flex", flexDirection: "column", height: 520 }}>
+        <div className="fchat-window" style={{ display: "flex", flexDirection: "column", height: 600, width: 480 }}>
 
-          {/* Header */}
-          <div className="fchat-head" style={{ flexShrink: 0 }}>
-            <div className="fchat-head-avatar">
+          {/* ── Header ── */}
+          <div style={{
+            background: "linear-gradient(135deg, #0E7A45 0%, #065F38 100%)",
+            padding: "14px 18px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0,
+            borderRadius: "20px 20px 0 0"
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: "50%",
+              background: "rgba(255,255,255,0.18)",
+              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+            }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
-            <div className="fchat-head-info">
-              <div className="fchat-head-name">
-                Lawyer Bhai AI
-                <span style={{ fontSize: 9, background: "#D1FAE5", color: "#065F46", padding: "2px 7px", borderRadius: 20, fontWeight: 700, marginLeft: 6 }}>AI Powered</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>LawyerGPT</span>
+                <span style={{ fontSize: 9, background: "#D1FAE5", color: "#065F46", padding: "2px 8px", borderRadius: 20, fontWeight: 800, letterSpacing: "0.04em" }}>POWERED BY AI</span>
               </div>
-              <div className="fchat-head-status">
-                <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "#22C55E", marginRight: 5 }}/>
-                Online — Pakistani Law Expert
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block" }} />
+                Pakistani Law Expert — Online
               </div>
             </div>
-            <button className="fchat-close" onClick={() => setOpen(false)}>
+            <button onClick={() => setOpen(false)} style={{
+              background: "rgba(255,255,255,0.12)", border: "none", cursor: "pointer",
+              color: "rgba(255,255,255,0.9)", borderRadius: 8, padding: 6,
+              display: "flex", transition: "background 150ms"
+            }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="fchat-msgs" style={{ flex: 1, overflowY: "auto" }}>
-            {msgs.map((m, i) => (
-              <div key={i} className={`fchat-msg fchat-msg--${m.role}`}>
-                {m.role === "ai" && (
-                  <div className="fchat-msg-avatar">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          {/* ── Messages ── */}
+          <div ref={msgsBoxRef} style={{
+            flex: 1, overflowY: "auto", padding: "16px 14px",
+            display: "flex", flexDirection: "column", gap: 12,
+            background: "#F8FAFB",
+            scrollbarWidth: "thin", scrollbarColor: "#D1D5DB transparent"
+          }}>
+            {msgs.map((m, i) => {
+              const isAI = m.role === "ai";
+              const isLastAI = isAI && i === msgs.length - 1;
+              return (
+                <div
+                  key={i}
+                  ref={isLastAI ? lastAiRef : null}
+                  style={{
+                    display: "flex", gap: 9,
+                    flexDirection: isAI ? "row" : "row-reverse",
+                    alignItems: "flex-start"
+                  }}
+                >
+                  {isAI && (
+                    <div style={{
+                      width: 30, height: 30, borderRadius: "50%",
+                      background: "#E8F5EE", border: "1.5px solid #BBE9CE",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, marginTop: 2
+                    }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: isAI ? "flex-start" : "flex-end", maxWidth: "82%" }}>
+                    <div style={{
+                      background: isAI ? "#fff" : "#0E7A45",
+                      color: isAI ? "#1F2937" : "#fff",
+                      padding: "11px 14px",
+                      borderRadius: isAI ? "4px 16px 16px 16px" : "16px 4px 16px 16px",
+                      fontSize: 13.5, lineHeight: 1.65,
+                      boxShadow: isAI ? "0 1px 4px rgba(0,0,0,0.07)" : "0 2px 8px rgba(14,122,69,0.3)",
+                      border: isAI ? "1px solid #EEF0F2" : "none",
+                      maxWidth: "100%", wordBreak: "break-word"
+                    }}>
+                      {isAI ? renderMd(m.text) : m.text}
+                    </div>
+                    {isAI && <ProviderBadge provider={m.provider} />}
                   </div>
-                )}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: m.role === "ai" ? "flex-start" : "flex-end" }}>
-                  <div className="fchat-msg-bubble" style={{ lineHeight: 1.6 }}>
-                    {m.role === "ai" ? renderMd(m.text) : m.text}
-                  </div>
-                  {m.role === "ai" && <ProviderBadge provider={m.provider} />}
                 </div>
-              </div>
-            ))}
+              );
+            })}
+
             {typing && (
-              <div className="fchat-msg fchat-msg--ai">
-                <div className="fchat-msg-avatar">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div style={{ display: "flex", gap: 9, alignItems: "flex-start" }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: "50%",
+                  background: "#E8F5EE", border: "1.5px solid #BBE9CE",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <div className="fchat-msg-bubble fchat-typing"><span/><span/><span/></div>
+                <div style={{
+                  background: "#fff", border: "1px solid #EEF0F2",
+                  padding: "11px 16px", borderRadius: "4px 16px 16px 16px",
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.07)"
+                }}>
+                  <TypingDots />
+                </div>
               </div>
             )}
-            <div ref={bottomRef} />
+            <div ref={msgsEndRef} />
           </div>
 
-          {/* Quick questions — show only at start */}
-          {msgs.length <= 1 && (
-            <div style={{ padding: "8px 12px", display: "flex", flexWrap: "wrap", gap: 5, borderTop: "1px solid #F3F4F6", flexShrink: 0, background: "#FAFAFA" }}>
-              {QUICK.map((q, i) => (
-                <button key={i} onClick={() => pickQuick(q.msg)} style={{
-                  fontSize: 11, padding: "4px 10px", borderRadius: 20,
-                  border: "1px solid #E5E7EB", background: "#fff",
-                  color: "#374151", cursor: "pointer", fontWeight: 600,
-                  transition: "all 150ms"
-                }}>
-                  {q.label}
-                </button>
-              ))}
+          {/* ── Input ── */}
+          <div style={{
+            padding: "12px 14px", background: "#fff",
+            borderTop: "1px solid #EEF0F2", flexShrink: 0,
+            borderRadius: "0 0 20px 20px"
+          }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+              <textarea
+                id="fchat-inp"
+                rows={1}
+                placeholder="Apna legal masla likhein..."
+                value={input}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  e.target.style.height = "auto";
+                  e.target.style.height = Math.min(e.target.scrollHeight, 100) + "px";
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+                }}
+                disabled={typing}
+                style={{
+                  flex: 1, resize: "none", border: "1.5px solid #E5E7EB",
+                  borderRadius: 12, padding: "10px 14px", fontSize: 13.5,
+                  fontFamily: "inherit", outline: "none", lineHeight: 1.5,
+                  background: typing ? "#F9FAFB" : "#fff", color: "#1F2937",
+                  transition: "border-color 150ms", minHeight: 40, maxHeight: 100,
+                  scrollbarWidth: "none"
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "#0E7A45"; }}
+                onBlur={(e) => { e.target.style.borderColor = "#E5E7EB"; }}
+              />
+              <button
+                onClick={send}
+                disabled={!input.trim() || typing}
+                style={{
+                  width: 40, height: 40, borderRadius: 12, border: "none",
+                  background: input.trim() && !typing ? "#0E7A45" : "#D1D5DB",
+                  cursor: input.trim() && !typing ? "pointer" : "default",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 150ms", flexShrink: 0
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                </svg>
+              </button>
             </div>
-          )}
-
-          {/* Input */}
-          <div className="fchat-input-row" style={{ flexShrink: 0 }}>
-            <input
-              id="fchat-inp"
-              className="fchat-input"
-              placeholder="Apna legal masla poochein..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-              disabled={typing}
-            />
-            <button className="fchat-send" onClick={send} disabled={!input.trim() || typing}
-              style={{ opacity: (!input.trim() || typing) ? 0.5 : 1 }}>
-              {typing
-                ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              }
-            </button>
+            <div style={{ fontSize: 10.5, color: "#9CA3AF", marginTop: 6, textAlign: "center" }}>
+              LawyerGPT — Pakistani law expert · Shift+Enter for new line
+            </div>
           </div>
 
         </div>
       )}
 
-      {/* Trigger button */}
+      {/* ── Trigger button ── */}
       <div className="fchat-trigger" onClick={() => setOpen((o) => !o)}>
         {!open && <span className="fchat-label">LawyerGPT</span>}
         <button className="fchat-btn" title="Lawyer Bhai AI se poochein">

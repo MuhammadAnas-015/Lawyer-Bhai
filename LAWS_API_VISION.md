@@ -1,4 +1,8 @@
-# 🏛️ Pakistan Laws API — The Big Vision
+# 🏛️ PakLaw API — The Big Vision
+
+> **Status (2026-06-11):** API built & live-tested locally in [`laws-api/`](laws-api/).
+> Name finalized: **PakLaw API** (keys: `pklw_...`). Lawyer Bhai AI backend
+> integrated via `backend/paklaw_client.py`. pakistancode.gov.pk importer ready.
 
 > **Founder's note (Anas):** Ye Lawyer Bhai AI ka asli core / moat hai.
 > Pakistan ka complete, structured, searchable laws database — aur uski
@@ -106,14 +110,17 @@ GET  /api/v1/categories               → law categories
 - [x] Supabase project connected
 - [x] Base SQL schema (`database/schema.sql`)
 
-## ⏭️ Next Steps (jab Anas exact books de)
-- [ ] Anas se authoritative book list lo
-- [ ] Har book ki PDF arrange karo
+## ⏭️ Next Steps
+- [x] Build versioned public Laws API (FastAPI) — `laws-api/app/main.py`
+- [x] API key system + rate limiting + tiers — `pklw_` keys, free/pro/enterprise
+- [x] Swagger/OpenAPI docs — auto at `/docs`
+- [x] pakistancode.gov.pk bulk importer — `laws-api/scrape_pakistancode.py`
+- [x] Lawyer Bhai AI integration — `backend/paklaw_client.py` (PakLaw first, local fallback)
+- [ ] Full corpus import (run `--import` batches until catalog done)
+- [ ] Anas ki authoritative book PDFs → `laws-api/import_pdf.py`
+- [ ] Deploy live on Render (`laws-api/render.yaml` ready)
 - [ ] Extraction pipeline improve (Urdu, amendments, cross-refs)
-- [ ] Migrate laws → Supabase (PostgreSQL + pgvector)
-- [ ] Build versioned public Laws API (FastAPI)
-- [ ] API key system + rate limiting + tiers
-- [ ] Swagger/OpenAPI docs
+- [ ] Migrate laws → Supabase (PostgreSQL + pgvector) for scale
 - [ ] Public launch as standalone product
 
 ---

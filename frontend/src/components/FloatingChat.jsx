@@ -5,16 +5,70 @@ import { useT } from "../utils/i18n.jsx";
 const detectLang = (text) => {
   if (/[؀-ۿ]/.test(text)) return "ur";
   const t = text.toLowerCase();
-  const romanUrdu = ["mera","meri","mujhe","kya","hai","kaise","karna","nahi","aap","ka","ki","ke","ko","mein","hain","wala","kar","raha","rahi","gaya","kiya","masla","kiraya","talaq","naukri","zameen","chori","dhoka","makan","shadi","bachay","case","nikah","sawaal","batao","chahiye","hota","hoti","mere","teri","tere","hamara","apna","lekin","agar","bhi","sirf","hum","tum","woh","yeh","koi","sab","ky","hy","hn","krna","kro","kren","bhai","yar","yr"];
+  const romanUrdu = ["mera","meri","mujhe","kya","hai","kaise","karna","nahi","aap","ka","ki","ke","ko","mein","hain","wala","kar","raha","rahi","gaya","kiya","masla","kiraya","talaq","naukri","zameen","chori","dhoka","makan","shadi","bachay","case","nikah","sawaal","batao","chahiye","hota","hoti","mere","teri","tere","hamara","apna","lekin","agar","bhi","sirf","hum","tum","woh","yeh","koi","sab","ky","hy","hn","krna","kro","kren","bhai","yar","yr","poochna","haan","theek","acha","shukriya","karo","dena","lena","jana","aana","krein","krain","krdo","hoga","hogi","tha","thi","the","hun","hoon","ap","he"];
   const words = t.split(/\s+/);
   const hits = words.filter((w) => romanUrdu.includes(w)).length;
   return hits >= 2 ? "roman-ur" : "en";
 };
 
+// Markdown renderer: **bold**, *italic*, bullet lists, line breaks
+const renderMd = (text) => {
+  if (!text) return null;
+  const lines = text.split("\n");
+  const elements = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim() === "") {
+      elements.push(<br key={key++} />);
+      continue;
+    }
+    const bulletMatch = line.match(/^[-*•]\s+(.+)/);
+    if (bulletMatch) {
+      elements.push(
+        <div key={key++} style={{ display: "flex", gap: "6px", marginBottom: "3px" }}>
+          <span style={{ color: "#0E7A45", fontWeight: 700, flexShrink: 0 }}>•</span>
+          <span>{inlineFormat(bulletMatch[1])}</span>
+        </div>
+      );
+      continue;
+    }
+    elements.push(<div key={key++} style={{ marginBottom: "1px" }}>{inlineFormat(line)}</div>);
+  }
+  return elements;
+};
+
+const inlineFormat = (text) => {
+  const parts = [];
+  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  let last = 0;
+  let match;
+  let k = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) parts.push(<span key={k++}>{text.slice(last, match.index)}</span>);
+    const raw = match[0];
+    if (raw.startsWith("**")) parts.push(<strong key={k++}>{raw.slice(2, -2)}</strong>);
+    else parts.push(<em key={k++}>{raw.slice(1, -1)}</em>);
+    last = match.index + raw.length;
+  }
+  if (last < text.length) parts.push(<span key={k++}>{text.slice(last)}</span>);
+  return parts.length === 0 ? text : parts;
+};
+
 const FALLBACKS = {
-  en: ["Under Pakistani law, your rights are protected. I'd recommend consulting a lawyer for your specific case. Can you share more details about your situation?"],
-  "roman-ur": ["Pakistani qanoon ke hisaab se aapke huqooq protected hain. Apna masla thoda aur detail mein batayein taky main behtar guide kar sakoon."],
-  ur: ["پاکستانی قانون کے مطابق آپ کے حقوق محفوظ ہیں۔ اپنا مسئلہ مزید تفصیل سے بتائیں۔"],
+  en: [
+    "I'm having a connection issue right now, but your legal matter sounds important. Please try again in a moment — I want to give you proper guidance.",
+    "Temporarily offline. Please try again shortly.",
+  ],
+  "roman-ur": [
+    "Abhi connection mein masla aa raha hai. Thodi der baad dobara try karein — aapka masla mujhe zaroor sunna hai.",
+    "Kuch technical masla hai. Please thodi der mein dobara poochein.",
+  ],
+  ur: [
+    "ابھی کنیکشن میں مسئلہ آ رہا ہے۔ تھوڑی دیر بعد دوبارہ کوشش کریں — آپ کا مسئلہ مجھے ضرور سننا ہے۔",
+    "کچھ تکنیکی مسئلہ ہے۔ براہ کرم تھوڑی دیر میں دوبارہ پوچھیں۔",
+  ],
 };
 
 const ProviderBadge = ({ provider }) => {
@@ -114,7 +168,9 @@ const FloatingChat = ({ lang = "en" }) => {
                   </div>
                 )}
                 <div style={{ display: "flex", flexDirection: "column", alignItems: m.role === "ai" ? "flex-start" : "flex-end" }}>
-                  <div className="fchat-msg-bubble" style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{m.text}</div>
+                  <div className="fchat-msg-bubble" style={{ lineHeight: 1.6 }}>
+                    {m.role === "ai" ? renderMd(m.text) : m.text}
+                  </div>
                   {m.role === "ai" && <ProviderBadge provider={m.provider} />}
                 </div>
               </div>

@@ -21,9 +21,17 @@ Pakistan ka AI Legal Assistant — bilingual (English/Urdu) legal guidance, docu
 | NLP | Custom keyword + TF-IDF matching |
 | OCR | Tesseract + pdfminer |
 
+## PakLaw API 🆕
+Standalone product in [`laws-api/`](laws-api/) — Pakistan's first structured laws API.
+API-key protected (`pklw_...`), full-text search, case matching, tiered rate limits.
+Lawyer Bhai AI backend consumes it via `backend/paklaw_client.py` (env:
+`PAKLAW_API_URL`, `PAKLAW_API_KEY`) with automatic local fallback.
+See [laws-api/README.md](laws-api/README.md).
+
 ## Project Structure
 ```
 LawyerBhaiAI/
+├── laws-api/          PakLaw API (standalone product)
 ├── frontend/          React + Vite app
 │   ├── src/
 │   │   ├── components/   All UI components

@@ -11,6 +11,8 @@ frontend/.vite/
 
 # ─── Database (regenerated on startup) ───
 backend/laws.db
+laws-api/paklaw.db
+laws-api/venv/
 
 # ─── Environment secrets ───
 backend/.env

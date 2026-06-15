@@ -11,6 +11,15 @@ from typing import Optional, List
 
 from laws_engine import init_db, get_all_laws, find_laws, calculate_win_probability
 from ocr_engine import extract_text
+import paklaw_client
+
+
+def smart_find_laws(query: str, category: str = None, top_n: int = 5):
+    """PakLaw API (live, full corpus) first; local engine as fallback."""
+    results = paklaw_client.search_laws(query, category=category, top=top_n)
+    if results:
+        return results
+    return find_laws(query, category=category, top_n=top_n)
 
 # ── DB path: use /data on Render (persistent disk), else local ──
 import laws_engine
@@ -20,8 +29,8 @@ if os.path.exists("/data"):
 # ─── App init ──────────────────────────────────────────────────
 app = FastAPI(
     title="Lawyer Bhai AI — Laws API",
-    description="Pakistani legal AI backend. No paid API needed.",
-    version="1.0.0"
+    description="Pakistani legal AI backend.",
+    version="2.0.0"
 )
 
 app.add_middleware(
@@ -50,10 +59,155 @@ class ChatRequest(BaseModel):
     reply_lang: Optional[str] = "en"   # en | roman-ur | ur
 
 
+# ─── LawyerGPT System Prompt ───────────────────────────────────
+LAWYER_SYSTEM_PROMPT = """You are LawyerGPT — an expert Pakistani lawyer and legal advisor with 20+ years of experience. You are speaking directly with a client who needs legal help.
+
+CORE RULES (never break these):
+1. You ARE the lawyer. Give direct legal advice. NEVER say "consult a lawyer", "seek legal counsel", "I'm not a lawyer", or "this is not legal advice". You ARE the qualified legal expert.
+2. Mirror the user's language exactly:
+   - Urdu script (اردو) → reply fully in Urdu script
+   - Roman Urdu (latinized Urdu like "mera masla", "kya karna chahiye") → reply in Roman Urdu
+   - English → reply in English
+   - Mixed language → match their mix naturally
+3. Be warm, conversational, and clear — like a trusted senior lawyer who genuinely cares. Not formal, not robotic.
+4. Give specific, actionable next steps. Tell them exactly what to do.
+
+YOUR LEGAL EXPERTISE (Pakistani Law):
+- Criminal Law (PPC 1860): FIR procedure, bail (bailable/non-bailable), defenses, appeals
+- Family Law: MFLO 1961, divorce (talaq/khula), child custody (hazan), maintenance (nafaqa), mehr/dower
+- Property Law: sale deeds, mutation (intiqal), illegal possession, eviction, co-ownership disputes
+- Labor Law: NIRC, wrongful termination, unpaid wages, gratuity, EOBI, workplace harassment
+- Constitutional Law: fundamental rights (Articles 9-28), writ petitions, High Court/Supreme Court
+- Civil Law: contracts, fraud, breach, recovery suits, limitation periods
+- Consumer Protection: defective goods, service failures, CCPA complaints
+- Cyber Crime: PECA 2016, online harassment, data theft, digital fraud
+- Corruption/NAB: accountability, plea bargains, asset declarations
+
+HOW TO RESPOND:
+- Start by acknowledging their situation empathetically (1 sentence)
+- Explain clearly which Pakistani law applies and why
+- State their rights and legal options directly
+- Give practical next steps with specifics (which court, which office, what documents)
+- For criminal matters: explain FIR process, bail rights, potential punishments, defenses
+- For family matters: explain procedure, required documents, which court (Union Council vs Family Court)
+- Assess case strength honestly but diplomatically
+- Keep it focused and readable — use short paragraphs, avoid walls of text
+- If you need more details to give better advice, ask one focused question
+
+You work on LawyerBhai AI — Pakistan's trusted AI legal assistant."""
+
+
+def _build_law_context(laws: list) -> str:
+    if not laws:
+        return ""
+    ctx = "Relevant Pakistani laws identified for this query:\n"
+    for i, law in enumerate(laws[:3], 1):
+        ctx += f"\n{i}. {law['act_name']} — {law['section_num']}: {law['title']}\n"
+        ctx += f"   {law['text_en'][:300]}\n"
+        if law.get("punishment"):
+            ctx += f"   Punishment: {law['punishment']}\n"
+        if law.get("bailable") is not None:
+            bail = "Yes (qabile zamaanat)" if law["bailable"] else "No (na-qabile zamaanat)"
+            ctx += f"   Bailable: {bail}\n"
+    return ctx
+
+
+def _call_gemini(history_msgs: list, system: str) -> Optional[str]:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system)
+
+        # Gemini history format: alternating user/model, must start with user
+        gemini_history = []
+        for msg in history_msgs[:-1]:
+            role = "model" if msg["role"] in ("ai", "assistant", "model") else "user"
+            content = msg.get("content", "")
+            if content.strip():
+                gemini_history.append({"role": role, "parts": [content]})
+
+        # Gemini requires history to start with 'user'
+        while gemini_history and gemini_history[0]["role"] == "model":
+            gemini_history.pop(0)
+
+        chat = model.start_chat(history=gemini_history)
+        response = chat.send_message(history_msgs[-1]["content"])
+        return response.text
+    except Exception as e:
+        print(f"[Gemini error] {e}")
+        return None
+
+
+def _call_groq(history_msgs: list, system: str) -> Optional[str]:
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        return None
+    try:
+        from groq import Groq
+        client = Groq(api_key=api_key)
+
+        messages = [{"role": "system", "content": system}]
+        for msg in history_msgs:
+            role = "assistant" if msg["role"] in ("ai", "model", "assistant") else "user"
+            content = msg.get("content", "")
+            if content.strip():
+                messages.append({"role": role, "content": content})
+
+        response = client.chat.completions.create(
+            messages=messages,
+            model="llama-3.3-70b-versatile",
+            max_tokens=1024,
+            temperature=0.7,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"[Groq error] {e}")
+        return None
+
+
+def _template_chat_fallback(message: str, matched: list, lang: str) -> str:
+    """Original template-based response — used only if both LLMs are unavailable."""
+    if not matched:
+        return {
+            "ur": "معذرت — اس سوال سے متعلق کوئی مخصوص پاکستانی قانون نہیں ملا۔ اپنا مسئلہ تھوڑا تفصیل سے بتائیں۔",
+            "roman-ur": "Maafi chahta hun — is sawaal se mutabiq koi specific Pakistani qanoon nahi mila. Apna masla thoda tafseel se batayein.",
+            "en": "Sorry — I couldn't find a specific Pakistani law matching this question. Could you describe your situation in a bit more detail?",
+        }.get(lang, "Please describe your situation in more detail.")
+
+    top = matched[0]
+    title = top["title"]
+    act = top["act_name"]
+    sec = top["section_num"]
+    body = top["text_en"][:350]
+    punishment = top.get("punishment")
+    win = calculate_win_probability(message, matched)["win_pct"]
+
+    if lang == "ur":
+        response = f"آپ کے سوال کے مطابق، **{act} — {sec}**: {title}\n\n{body}...\n\n"
+        if punishment:
+            response += f"**سزا**: {punishment}\n\n"
+        response += f"**آپ کے کیس کی مضبوطی**: {win}%"
+    elif lang == "roman-ur":
+        response = f"Aapke sawaal ke mutabiq, **{act} — {sec}**: {title}\n\n{body}...\n\n"
+        if punishment:
+            response += f"**Saza**: {punishment}\n\n"
+        response += f"**Aapke case ki mazbooti**: {win}%"
+    else:
+        response = f"Based on your question, **{act} — {sec}**: {title}\n\n{body}...\n\n"
+        if punishment:
+            response += f"**Punishment**: {punishment}\n\n"
+        response += f"**Case strength**: {win}%"
+
+    return response
+
+
 # ─── Health Check ──────────────────────────────────────────────
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "Lawyer Bhai AI", "version": "1.0.0"}
+    return {"status": "ok", "service": "Lawyer Bhai AI", "version": "2.0.0"}
 
 
 # ─── GET /laws ─────────────────────────────────────────────────
@@ -87,7 +241,7 @@ def search_laws(
 ):
     if not q.strip():
         raise HTTPException(400, "Query cannot be empty")
-    results = find_laws(q, category=category, top_n=top)
+    results = smart_find_laws(q, category=category, top_n=top)
     return {"query": q, "total": len(results), "laws": results}
 
 
@@ -97,7 +251,7 @@ def analyze_case(req: AnalyzeRequest):
     if not req.text.strip():
         raise HTTPException(400, "Text cannot be empty")
 
-    matched = find_laws(req.text, category=req.category, top_n=5)
+    matched = smart_find_laws(req.text, category=req.category, top_n=5)
     accuracy = calculate_win_probability(req.text, matched)
 
     lang = (req.reply_lang or "en").lower()
@@ -108,23 +262,16 @@ def analyze_case(req: AnalyzeRequest):
         advice = _generate_advice(req.text, matched, category, lang)
     else:
         advice = {
-            "ur": "آپ کے مسئلے سے متعلق کوئی پاکستانی قانون نہیں ملا۔ کسی تجربہ کار وکیل سے براہ راست رابطہ کریں۔",
-            "roman-ur": "Aapke masle ke liye relevant Pakistani qanoon nahi mila. Kisi tajurbakar vakeel se direct raabta karen.",
-            "en": "No relevant Pakistani law found for your problem. Please contact an experienced lawyer directly.",
-        }.get(lang, "No relevant Pakistani law found. Please contact a lawyer.")
-
-    disclaimer = {
-        "ur": "یہ مشورہ صرف معلومات کے لیے ہے۔ قانونی فیصلوں کے لیے کسی وکیل سے ملیں۔",
-        "roman-ur": "Ye mashwara sirf maloomat ke liye hai. Qanooni faislon ke liye kisi vakeel se milein.",
-        "en": "This advice is for information only. Consult a lawyer for legal decisions.",
-    }.get(lang, "This advice is for information only. Consult a lawyer.")
+            "ur": "آپ کے مسئلے سے متعلق کوئی پاکستانی قانون نہیں ملا۔ اپنا مسئلہ تھوڑا تفصیل سے بیان کریں۔",
+            "roman-ur": "Aapke masle ke liye relevant Pakistani qanoon nahi mila. Apna masla thoda tafseel se bayaan karein.",
+            "en": "No relevant Pakistani law found for your problem. Please describe your situation in more detail.",
+        }.get(lang, "No relevant Pakistani law found. Please describe your situation.")
 
     return {
         "query": req.text,
         "matched_laws": matched,
         "accuracy": accuracy,
         "advice": advice,
-        "disclaimer": disclaimer,
     }
 
 
@@ -146,7 +293,7 @@ async def ocr_document(file: UploadFile = File(...)):
     if extracted_text.startswith("["):
         raise HTTPException(500, extracted_text)
 
-    matched = find_laws(extracted_text, top_n=5)
+    matched = smart_find_laws(extracted_text, top_n=5)
     accuracy = calculate_win_probability(extracted_text, matched)
 
     return {
@@ -165,59 +312,42 @@ def chat(req: ChatRequest):
     if not req.message.strip():
         raise HTTPException(400, "Message cannot be empty")
 
-    matched = find_laws(req.message, top_n=3)
+    matched = smart_find_laws(req.message, top_n=3)
     accuracy = calculate_win_probability(req.message, matched)
     lang = (req.reply_lang or "en").lower()
 
-    if matched:
-        top = matched[0]
-        title = top["title"]
-        act = top["act_name"]
-        sec = top["section_num"]
-        body = top["text_en"][:350]
-        punishment = top.get("punishment")
-        win = accuracy["win_pct"]
+    # Build system prompt enriched with relevant law context
+    law_context = _build_law_context(matched)
+    system = LAWYER_SYSTEM_PROMPT
+    if law_context:
+        system += f"\n\n{law_context}"
 
-        if lang == "ur":
-            response = (
-                f"آپ کے سوال کے مطابق، پاکستانی قانون میں یہ متعلقہ ہے:\n\n"
-                f"**{act} — {sec}**: {title}\n\n{body}...\n\n"
-            )
-            if punishment:
-                response += f"**سزا**: {punishment}\n\n"
-            response += f"**آپ کے حق میں امکان**: {win}%\n\n"
-            response += "_یہ صرف معلومات ہے، قانونی مشورہ نہیں۔ کسی وکیل سے ضرور ملیں۔_"
-        elif lang == "roman-ur":
-            response = (
-                f"Aapke sawaal ke mutabiq, Pakistani qanoon mein yeh relevant hai:\n\n"
-                f"**{act} — {sec}**: {title}\n\n{body}...\n\n"
-            )
-            if punishment:
-                response += f"**Saza**: {punishment}\n\n"
-            response += f"**Aapke haq mein imkaan**: {win}%\n\n"
-            response += "_Ye sirf maloomat hai, qanooni mashwara nahi. Vakeel se zaroor milein._"
-        else:  # english
-            response = (
-                f"Based on your question, this is relevant in Pakistani law:\n\n"
-                f"**{act} — {sec}**: {title}\n\n{body}...\n\n"
-            )
-            if punishment:
-                response += f"**Punishment**: {punishment}\n\n"
-            response += f"**Your chances**: {win}%\n\n"
-            response += "_This is information only, not legal advice. Please consult a lawyer._"
+    # Build message list for LLM (last 8 messages for context window)
+    llm_msgs = []
+    for h in (req.history or [])[-8:]:
+        role = h.get("role", "user")
+        content = h.get("content", "")
+        if content.strip():
+            llm_msgs.append({"role": role, "content": content})
+    llm_msgs.append({"role": "user", "content": req.message})
+
+    # Gemini (primary) → Groq (fallback) → template (last resort)
+    ai_provider = "rule-based"
+    response = _call_gemini(llm_msgs, system)
+    if response:
+        ai_provider = "gemini"
     else:
-        if lang == "ur":
-            response = "معذرت — اس سوال سے متعلق کوئی مخصوص پاکستانی قانون نہیں ملا۔ براہ کرم اپنا مسئلہ تھوڑا تفصیل سے دوبارہ پوچھیں۔"
-        elif lang == "roman-ur":
-            response = "Maafi chahta hun — is sawaal se mutabiq koi specific Pakistani qanoon nahi mila. Kripaya apna masla thoda tafseeli likh kar dobara poochein."
-        else:
-            response = "Sorry — I couldn't find a specific Pakistani law matching this question. Please describe your problem in a bit more detail."
+        response = _call_groq(llm_msgs, system)
+        if response:
+            ai_provider = "groq"
 
-    return {"reply": response, "matched_laws": matched, "accuracy": accuracy}
+    if not response:
+        response = _template_chat_fallback(req.message, matched, lang)
+
+    return {"reply": response, "matched_laws": matched, "accuracy": accuracy, "ai_provider": ai_provider}
 
 
 # ─── Advice generator (language-aware) ─────────────────────────
-# intro = before law text, action = practical step after it.
 _ADVICE = {
     "Criminal": {
         "en":       ("In your case, {b} applies. ", "If you want to file an FIR, visit the nearest police station. {bail}"),
@@ -250,9 +380,9 @@ _ADVICE = {
         "ur":       ("آپ کا مسئلہ {b} سے متعلق ہے۔ ", "بنیادی حقوق کی خلاف ورزی پر ہائی کورٹ میں رٹ درخواست دائر کی جا سکتی ہے۔"),
     },
     "_default": {
-        "en":       ("In your case, {b} applies. ", "Consult an experienced lawyer."),
-        "roman-ur": ("Aapke case mein {b} laagu hoti hai. ", "Aik tajurbakar vakeel se mashwara karein."),
-        "ur":       ("آپ کے کیس میں {b} لاگو ہوتا ہے۔ ", "کسی تجربہ کار وکیل سے مشورہ کریں۔"),
+        "en":       ("In your case, {b} applies. ", "Here are your legal options based on Pakistani law."),
+        "roman-ur": ("Aapke case mein {b} laagu hoti hai. ", "Pakistani qanoon ke mutabiq aapke paas ye options hain."),
+        "ur":       ("آپ کے کیس میں {b} لاگو ہوتا ہے۔ ", "پاکستانی قانون کے مطابق آپ کے پاس یہ اختیارات ہیں۔"),
     },
 }
 

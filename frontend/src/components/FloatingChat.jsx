@@ -84,21 +84,7 @@ const FALLBACKS = {
   ur: ["ابھی کنیکشن میں مسئلہ آ رہا ہے۔ تھوڑی دیر بعد دوبارہ کوشش کریں۔"],
 };
 
-const ProviderBadge = ({ provider }) => {
-  if (!provider || provider === "rule-based") return null;
-  const isGemini = provider === "gemini";
-  return (
-    <span style={{
-      fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10,
-      background: isGemini ? "#EFF6FF" : "#F5F3FF",
-      color: isGemini ? "#2563EB" : "#7C3AED",
-      marginTop: 5, display: "inline-block", letterSpacing: "0.06em", textTransform: "uppercase",
-      border: `1px solid ${isGemini ? "#BFDBFE" : "#DDD6FE"}`
-    }}>
-      {isGemini ? "✦ Gemini AI" : "⚡ Groq AI"}
-    </span>
-  );
-};
+const ProviderBadge = () => null;
 
 const TypingDots = () => (
   <div style={{ display: "flex", gap: 4, padding: "4px 2px", alignItems: "center" }}>

@@ -1,78 +1,68 @@
 import { useState, useEffect } from "react";
 import { api } from "../utils/api";
+import { renderMd } from "../utils/renderMd.jsx";
 import { useT, detectTextLang } from "../utils/i18n.jsx";
+import InlineChat from "./InlineChat";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
-const MOCK_LAWS = {
-  rent: [
-    { code: "Rent Restriction Ordinance", section: "General 1", desc: "Landlord cannot evict tenant without valid legal ground.", conf: "high" },
-    { code: "Transfer of Property Act 1882", section: "Section 105", desc: "Lease of immovable property rights and obligations.", conf: "high" },
-  ],
-  employment: [
-    { code: "Industrial & Commercial Employment Ordinance 1968", section: "Section 11", desc: "Employer must give 30 days notice before termination.", conf: "high" },
-    { code: "Payment of Wages Act 1936", section: "Section 4", desc: "Wages must be paid within 7 days of wage period end.", conf: "high" },
-  ],
-  default: [
-    { code: "Contract Act 1872", section: "Section 73", desc: "Compensation for loss caused by breach of contract.", conf: "med" },
-    { code: "Constitution of Pakistan 1973", section: "Article 10-A", desc: "Right to fair trial and due process.", conf: "med" },
-  ],
-};
-
-const MOCK_ADVICE = {
-  rent: "Aapke case mein Rent Restriction Ordinance laagu hota hai. Makan maalik bina notice ke kiraya nahi badha sakta. Rent Controller ke paas complaint file karein.",
-  employment: "Aapke employment dispute mein ICEO 1968 laagu hoti hai. Termination ke waqt 30 din ka notice zaroori hai. NIRC mein complaint file karein.",
-  default: "Aapke masle mein Contract Act 1872 laagu hoti hai. Tamam documents mahfooz rakhein aur ek tajurbakar vakeel se mashwara karein.",
-};
 
 const LegalGuideTab = ({ lang }) => {
   const { t } = useT();
   const [caseText, setCaseText] = useState("");
-  const [status, setStatus] = useState("idle");
-  const [result, setResult] = useState(null);
-  const [apiOnline, setApiOnline] = useState(null);
+  const [status, setStatus]     = useState("idle");   // idle | processing | done
+  const [aiResponse, setAiResponse]   = useState(null);
+  const [matchedLaws, setMatchedLaws] = useState([]);
+  const [accuracy, setAccuracy]       = useState(null);
+  const [chatContext, setChatContext]  = useState([]);
+  const [replyLang, setReplyLang]     = useState("en");
+  const [apiOnline, setApiOnline]     = useState(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/`).then((r) => setApiOnline(r.ok)).catch(() => setApiOnline(false));
+    fetch(`${API_BASE}/`).then(r => setApiOnline(r.ok)).catch(() => setApiOnline(false));
   }, []);
 
   const handleSubmit = async () => {
-    if (!caseText.trim()) return;
+    if (!caseText.trim() || status === "processing") return;
     setStatus("processing");
-    setResult(null);
+    setAiResponse(null);
+    setMatchedLaws([]);
+    setAccuracy(null);
+    setChatContext([]);
+
+    const detectedLang = lang === "ur" ? "ur" : detectTextLang(caseText);
+    setReplyLang(detectedLang);
 
     if (!apiOnline) {
+      // Offline mock
       setTimeout(() => {
-        const lower = caseText.toLowerCase();
-        const key = lower.includes("rent") || lower.includes("kiraya") ? "rent"
-          : lower.includes("naukri") || lower.includes("salary") || lower.includes("job") ? "employment"
-          : "default";
-        setResult({ mode: "mock", laws: MOCK_LAWS[key], mashwara: MOCK_ADVICE[key], accuracy: null });
+        setAiResponse("Backend offline hai. Real AI analysis ke liye backend server chalaein.");
         setStatus("done");
-      }, 1400);
+      }, 1200);
       return;
     }
 
     try {
-      // Reply language: if UI is Urdu use Urdu, else detect from what user wrote
-      const replyLang = lang === "ur" ? "ur" : detectTextLang(caseText);
-      const data = await api.analyze(caseText, replyLang);
-      const laws = (data.matched_laws || []).map((l) => ({
+      const data = await api.chat(caseText, [], detectedLang);
+      setAiResponse(data.reply);
+      setMatchedLaws((data.matched_laws || []).map(l => ({
         code: l.act_name, section: l.section_num,
         desc: (l.text_en || l.title || "").slice(0, 160) + "…",
         conf: (l.score || 0) >= 50 ? "high" : "med",
         punishment: l.punishment, severity: l.severity,
-      }));
-      setResult({ mode: "api", laws, mashwara: data.advice, accuracy: data.accuracy, disclaimer: data.disclaimer });
+      })));
+      setAccuracy(data.accuracy || null);
+      setChatContext([
+        { role: "user", content: caseText },
+        { role: "assistant", content: data.reply },
+      ]);
       setStatus("done");
     } catch {
-      const lower = caseText.toLowerCase();
-      const key = lower.includes("rent") || lower.includes("kiraya") ? "rent"
-        : lower.includes("naukri") || lower.includes("salary") ? "employment" : "default";
-      setResult({ mode: "mock", laws: MOCK_LAWS[key], mashwara: MOCK_ADVICE[key], accuracy: null });
+      setAiResponse("Connection issue — please try again.");
       setStatus("done");
     }
   };
+
+  const reset = () => { setStatus("idle"); setCaseText(""); setAiResponse(null); setMatchedLaws([]); setAccuracy(null); setChatContext([]); };
 
   return (
     <div className="lg-wrap">
@@ -81,57 +71,112 @@ const LegalGuideTab = ({ lang }) => {
         <p>{t("lg.subtitle")}</p>
       </div>
 
-      <div className="lg-input-box">
-        <label>{t("lg.inputLabel")}</label>
-        <textarea className="lg-textarea" value={caseText} onChange={(e) => setCaseText(e.target.value)}
-          placeholder={t("lg.placeholder")} rows={5} />
-        <button className="lb-btn lb-btn--primary lg-submit" onClick={handleSubmit}
-          disabled={status === "processing" || !caseText.trim()}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 8, verticalAlign: "middle" }}>
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          {status === "processing" ? t("lg.searching") : t("lg.searchBtn")}
-        </button>
-      </div>
-
-      {status === "processing" && (
-        <div className="lg-processing">
-          <div className="lg-processing-dot"/><div className="lg-processing-dot"/><div className="lg-processing-dot"/>
-          {t("lg.processing")}
+      {/* Input box */}
+      {status === "idle" && (
+        <div className="lg-input-box">
+          <label>{t("lg.inputLabel")}</label>
+          <textarea
+            className="lg-textarea"
+            value={caseText}
+            onChange={e => setCaseText(e.target.value)}
+            placeholder={t("lg.placeholder")}
+            rows={5}
+          />
+          <button
+            className="lb-btn lb-btn--primary lg-submit"
+            onClick={handleSubmit}
+            disabled={!caseText.trim()}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ marginRight: 8, verticalAlign: "middle" }}>
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            {t("lg.searchBtn")}
+          </button>
         </div>
       )}
 
-      {status === "done" && result && (
+      {/* Processing */}
+      {status === "processing" && (
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: "50%",
+            background: "linear-gradient(135deg, #0E7A45, #065F38)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            margin: "0 auto 16px", animation: "pulse 1.5s ease-in-out infinite"
+          }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <p style={{ color: "#374151", fontWeight: 700, fontSize: 15 }}>LawyerGPT analyze kar raha hai...</p>
+          <p style={{ color: "#9CA3AF", fontSize: 13, marginTop: 4 }}>Pakistani law ke mutabiq jawab aa raha hai</p>
+        </div>
+      )}
+
+      {/* Results */}
+      {status === "done" && (
         <div className="lg-result">
-          {result.accuracy && (
-            <div className="lg-accuracy-card">
+
+          {/* Back button */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: 16 }}>
+            <button className="lb-btn" style={{ fontSize: 13, padding: "6px 14px" }} onClick={reset}>
+              ↩ Naya sawaal
+            </button>
+          </div>
+
+          {/* Accuracy card */}
+          {accuracy && (
+            <div className="lg-accuracy-card" style={{ marginBottom: 20 }}>
               <div className="lg-accuracy-left">
                 <div className="lg-accuracy-label">{t("lg.winChance")}</div>
-                <div className="lg-accuracy-pct">{result.accuracy.win_pct}<span>%</span></div>
-                <div className={`lg-accuracy-badge lg-accuracy-badge--${result.accuracy.confidence.toLowerCase()}`}>
-                  {result.accuracy.confidence} {t("lg.confidence")}
+                <div className="lg-accuracy-pct">{accuracy.win_pct}<span>%</span></div>
+                <div className={`lg-accuracy-badge lg-accuracy-badge--${accuracy.confidence?.toLowerCase()}`}>
+                  {accuracy.confidence} {t("lg.confidence")}
                 </div>
               </div>
               <div className="lg-accuracy-right">
-                <div className="lg-accuracy-bar-wrap"><div className="lg-accuracy-bar" style={{ width: result.accuracy.win_pct + "%" }}/></div>
-                <div className="lg-accuracy-note">{result.accuracy.note}</div>
+                <div className="lg-accuracy-bar-wrap">
+                  <div className="lg-accuracy-bar" style={{ width: accuracy.win_pct + "%" }} />
+                </div>
+                <div className="lg-accuracy-note">{accuracy.note}</div>
               </div>
             </div>
           )}
 
-          <div className="lg-result-head">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            <h3>{t("lg.aiAdvice")}</h3>
-            {result.mode === "mock" && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600, marginLeft: 8 }}>⚠ {t("lg.demoMode")}</span>}
-          </div>
-          <div className="lg-mashwara">{result.mashwara}</div>
+          {/* AI Response card */}
+          {aiResponse && (
+            <div style={{
+              background: "#fff", border: "1.5px solid #E8F5EE", borderRadius: 14,
+              marginBottom: 4, overflow: "hidden",
+              boxShadow: "0 2px 12px rgba(14,122,69,0.08)"
+            }}>
+              <div style={{
+                background: "linear-gradient(135deg, #0E7A45 0%, #065F38 100%)",
+                padding: "12px 18px", display: "flex", alignItems: "center", gap: 10
+              }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fff" }}>LawyerGPT — Legal Analysis</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>Pakistani law ke mutabiq</div>
+                </div>
+              </div>
+              <div style={{ padding: "18px 20px", fontSize: 14, lineHeight: 1.7, color: "#1F2937" }}>
+                {renderMd(aiResponse)}
+              </div>
+            </div>
+          )}
 
-          {result.laws?.length > 0 && (
-            <div className="lg-laws">
+          {/* Matched laws reference */}
+          {matchedLaws.length > 0 && (
+            <div className="lg-laws" style={{ marginTop: 12 }}>
               <div className="lg-laws-title">{t("lg.matchedLaws")}</div>
-              {result.laws.map((law, i) => (
+              {matchedLaws.map((law, i) => (
                 <div key={i} className="lg-law-item">
-                  <div className="lg-law-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="#0E7A45"><path d="M5 3h11l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg></div>
+                  <div className="lg-law-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="#0E7A45"><path d="M5 3h11l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/></svg>
+                  </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
                       <span className="lg-law-code">{law.code}</span>
@@ -146,7 +191,14 @@ const LegalGuideTab = ({ lang }) => {
               ))}
             </div>
           )}
-          {result.disclaimer && <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 12, padding: "8px 12px", background: "#F9FAFB", borderRadius: 8, borderLeft: "3px solid #E5E7EB" }}>⚠ {result.disclaimer}</div>}
+
+          {/* Inline chat for follow-up */}
+          <InlineChat
+            contextHistory={chatContext}
+            replyLang={replyLang}
+            placeholder="Is masle ke baare mein aur poochein..."
+            headerLabel="Aur sawaal poochein — LawyerGPT maujood hai"
+          />
         </div>
       )}
     </div>

@@ -536,9 +536,18 @@ def chat(req: ChatRequest):
     if not req.message.strip():
         raise HTTPException(400, "Message cannot be empty")
 
-    matched = smart_find_laws(req.message, top_n=3)
-    accuracy = calculate_win_probability(req.message, matched)
     lang = (req.reply_lang or "en").lower()
+    history = req.history or []
+
+    # Law search: use conversation context (not just latest msg) so follow-ups get right laws
+    # e.g. "send notice?" in a rent conversation should match rent laws, not talaq
+    search_text = req.message
+    if history:
+        prior = " ".join(h.get("content", "")[:120] for h in history[-3:])
+        search_text = prior + " " + req.message
+
+    matched = smart_find_laws(search_text, top_n=3)
+    accuracy = calculate_win_probability(req.message, matched)
 
     # Build system prompt enriched with law context + language directive
     law_context = _build_law_context(matched)
@@ -549,14 +558,14 @@ def chat(req: ChatRequest):
 
     # Build message list for LLM (last 8 messages for context window)
     llm_msgs = []
-    for h in (req.history or [])[-8:]:
+    for h in history[-8:]:
         role = h.get("role", "user")
         content = h.get("content", "")
         if content.strip():
             llm_msgs.append({"role": role, "content": content})
     llm_msgs.append({"role": "user", "content": req.message})
 
-    # Gemini (primary) → Groq (fallback) → template (last resort)
+    # Gemini (primary) → Groq (fallback) → connection error (last resort)
     ai_provider = "rule-based"
     response = _call_gemini(llm_msgs, system)
     if response:
@@ -567,7 +576,15 @@ def chat(req: ChatRequest):
             ai_provider = "groq"
 
     if not response:
-        response = _template_chat_fallback(req.message, matched, lang)
+        # Don't use template fallback in a conversation — it ignores context and confuses topics
+        if history:
+            response = {
+                "en": "I'm having a connection issue right now. Please try your question again.",
+                "roman-ur": "Abhi connection mein masla aa raha hai. Dobara try karein.",
+                "ur": "ابھی کنیکشن میں مسئلہ آ رہا ہے۔ دوبارہ کوشش کریں۔",
+            }.get(lang, "Connection issue. Please try again.")
+        else:
+            response = _template_chat_fallback(req.message, matched, lang)
 
     # Case bias assessment — only for first message (no history), skip follow-ups
     case_bias = None

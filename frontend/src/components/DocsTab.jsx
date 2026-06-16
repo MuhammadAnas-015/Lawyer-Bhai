@@ -104,7 +104,8 @@ const DocsTab = ({ lang }) => {
     // Step 2: AI analysis of the extracted text
     setStatus("analyzing");
     const extractedText = ocr.extracted_text || "";
-    const detectedLang = detectLang(extractedText) || lang || "en";
+    // Always use the app's UI language — document's own language is irrelevant to response language
+    const detectedLang = lang || "en";
     setReplyLang(detectedLang);
 
     const docPrompt = `Please analyze this legal document and tell me: what type of document it is, what legal rights or obligations it creates, any red flags or issues you notice, and what the person holding this document should know or do.\n\nDocument content:\n${extractedText.slice(0, 2000)}`;

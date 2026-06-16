@@ -674,7 +674,7 @@ html, body { margin: 0; padding: 0; background: #fff; }
 }
 .fchat-window {
   position: fixed; bottom: 90px; right: 28px; z-index: 9998;
-  width: 480px; background: #fff; border-radius: 20px;
+  width: 480px; height: 600px; background: #fff; border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08);
   display: flex; flex-direction: column; overflow: hidden;
   animation: fchatIn 220ms cubic-bezier(0.34,1.56,0.64,1);
@@ -1125,14 +1125,15 @@ html, body { margin: 0; padding: 0; background: #fff; }
     overflow-y: auto;
   }
 
-  /* ── FloatingChat ── */
-  .fchat-trigger { bottom: 76px; right: 16px; }
+  /* ── FloatingChat — full-screen on mobile ── */
+  .fchat-trigger { bottom: 20px; right: 16px; }
+  .fchat-label { display: none; }
   .fchat-window {
-    bottom: 136px; right: 8px; left: 8px;
-    width: auto;
-    max-height: 65vh;
+    top: 10px; left: 8px; right: 8px;
+    bottom: 88px;
+    width: auto; height: auto;
+    border-radius: 16px;
   }
-  .fchat-msgs { max-height: 40vh; }
 
   /* ── Splash ── */
   .splash-inner { padding: 20px; }
@@ -1169,8 +1170,9 @@ html, body { margin: 0; padding: 0; background: #fff; }
   .char-avatar-wrap { width: 240px !important; height: 340px !important; }
   .home-main-actions { flex-direction: row; gap: 16px; }
   .docs-grid { grid-template-columns: 1fr 1fr; }
-  /* Reset mobile floating-chat position on tablet */
+  /* Reset floating-chat to desktop style on tablet */
   .fchat-trigger { bottom: 28px; right: 28px; }
-  .fchat-window { bottom: 90px; right: 28px; left: auto; width: 480px; }
+  .fchat-label { display: flex; }
+  .fchat-window { top: auto; bottom: 90px; right: 28px; left: auto; width: 480px; height: 600px; border-radius: 20px; }
   .user-dropdown { position: absolute; top: calc(100% + 10px); bottom: auto; right: 0; left: auto; min-width: 220px; }
 }

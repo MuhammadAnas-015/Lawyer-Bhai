@@ -117,7 +117,7 @@ const FloatingChat = ({ lang = "en" }) => {
   return (
     <>
       {open && (
-        <div className="fchat-window" style={{ display: "flex", flexDirection: "column", height: 600, width: 480 }}>
+        <div className="fchat-window" style={{ display: "flex", flexDirection: "column" }}>
 
           {/* ── Header ── */}
           <div style={{

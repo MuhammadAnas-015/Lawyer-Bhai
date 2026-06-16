@@ -261,11 +261,11 @@ def _call_llm_json(prompt: str) -> Optional[dict]:
         except Exception as e:
             print(f"[Gemini JSON error] {e}")
 
-    # Fallback: Groq with JSON mode
-    groq_key = os.getenv("GROQ_API_KEY")
-    if groq_key:
-        try:
-            from groq import Groq
+    # Fallback: Groq with JSON mode — try both keys
+    groq_keys = [k for k in [os.getenv("GROQ_API_KEY"), os.getenv("GROQ_API_KEY_2")] if k]
+    if groq_keys:
+        from groq import Groq
+        for groq_key in groq_keys:
             client = Groq(api_key=groq_key)
             for gm in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"):
                 try:
@@ -280,10 +280,11 @@ def _call_llm_json(prompt: str) -> Optional[dict]:
                     if text:
                         return json.loads(text)
                 except Exception as me:
-                    print(f"[Groq JSON {gm}] {me}")
+                    err = str(me)
+                    print(f"[Groq JSON {gm}] {err[:100]}")
+                    if "429" in err:
+                        break
                     continue
-        except Exception as e:
-            print(f"[Groq JSON error] {e}")
 
     return None
 
@@ -393,24 +394,25 @@ def _call_gemini(history_msgs: list, system: str) -> Optional[str]:
 
 
 def _call_groq(history_msgs: list, system: str) -> Optional[str]:
-    api_key = os.getenv("GROQ_API_KEY")
-    if not api_key:
+    # Try both Groq keys — when one hits the daily 100K token limit, the other takes over
+    groq_keys = [k for k in [os.getenv("GROQ_API_KEY"), os.getenv("GROQ_API_KEY_2")] if k]
+    if not groq_keys:
         return None
-    try:
-        from groq import Groq
+
+    from groq import Groq
+
+    messages = [{"role": "system", "content": system}]
+    for msg in history_msgs:
+        role = "assistant" if msg["role"] in ("ai", "model", "assistant") else "user"
+        content = msg.get("content", "")
+        if content.strip():
+            messages.append({"role": role, "content": content})
+
+    for api_key in groq_keys:
         client = Groq(api_key=api_key)
-
-        messages = [{"role": "system", "content": system}]
-        for msg in history_msgs:
-            role = "assistant" if msg["role"] in ("ai", "model", "assistant") else "user"
-            content = msg.get("content", "")
-            if content.strip():
-                messages.append({"role": role, "content": content})
-
         for groq_model in (
-            "llama-3.3-70b-versatile",   # Best quality, 100K TPD free
-            "llama-3.1-8b-instant",      # Fast fallback, separate quota
-            "llama3-8b-8192",            # Additional fallback
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant",
         ):
             try:
                 response = client.chat.completions.create(
@@ -421,15 +423,16 @@ def _call_groq(history_msgs: list, system: str) -> Optional[str]:
                 )
                 result = response.choices[0].message.content
                 if result:
-                    print(f"[Groq] success with model: {groq_model}")
+                    print(f"[Groq] success key={api_key[:8]} model={groq_model}")
                     return result
             except Exception as model_err:
-                print(f"[Groq {groq_model} error] {model_err}")
-                continue
-        return None
-    except Exception as e:
-        print(f"[Groq error] {e}")
-        return None
+                err = str(model_err)
+                print(f"[Groq {groq_model}] {err[:120]}")
+                # 429 = rate limit → try next key; other errors → try next model on same key
+                if "429" in err:
+                    break   # break inner loop → move to next key
+                continue    # try next model on same key
+    return None
 
 
 def _template_chat_fallback(message: str, matched: list, lang: str) -> str:

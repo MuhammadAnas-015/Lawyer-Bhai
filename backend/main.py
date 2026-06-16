@@ -224,24 +224,11 @@ def _build_law_context(laws: list) -> str:
 
 
 def _call_llm_json(prompt: str) -> Optional[dict]:
-    """Call Gemini Flash with a JSON-output prompt. Low temp for consistency."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return None
-    try:
-        import google.generativeai as genai
-        import json
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(
-            "gemini-1.5-flash",
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.1,
-                max_output_tokens=600,
-            ),
-        )
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-        # Strip markdown fences if model wraps output
+    """Call Gemini Flash (primary) or Groq (fallback) with a JSON-output prompt."""
+    import json
+
+    def _parse_json(text: str):
+        text = text.strip()
         if "```" in text:
             parts = text.split("```")
             for p in parts:
@@ -253,9 +240,52 @@ def _call_llm_json(prompt: str) -> Optional[dict]:
                 except Exception:
                     continue
         return json.loads(text)
-    except Exception as e:
-        print(f"[LLM JSON error] {e}")
-        return None
+
+    # Try Gemini first
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            for json_model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
+                try:
+                    m = genai.GenerativeModel(
+                        json_model_name,
+                        generation_config=genai.types.GenerationConfig(temperature=0.1, max_output_tokens=600),
+                    )
+                    resp = m.generate_content(prompt)
+                    return _parse_json(resp.text)
+                except Exception as me:
+                    print(f"[Gemini JSON {json_model_name}] {me}")
+                    continue
+        except Exception as e:
+            print(f"[Gemini JSON error] {e}")
+
+    # Fallback: Groq with JSON mode
+    groq_key = os.getenv("GROQ_API_KEY")
+    if groq_key:
+        try:
+            from groq import Groq
+            client = Groq(api_key=groq_key)
+            for gm in ("llama-3.3-70b-versatile", "llama-3.1-8b-instant"):
+                try:
+                    r = client.chat.completions.create(
+                        messages=[{"role": "user", "content": prompt}],
+                        model=gm,
+                        max_tokens=600,
+                        temperature=0.1,
+                        response_format={"type": "json_object"},
+                    )
+                    text = r.choices[0].message.content or ""
+                    if text:
+                        return json.loads(text)
+                except Exception as me:
+                    print(f"[Groq JSON {gm}] {me}")
+                    continue
+        except Exception as e:
+            print(f"[Groq JSON error] {e}")
+
+    return None
 
 
 def _assess_document(text: str) -> Optional[dict]:
@@ -331,8 +361,8 @@ def _call_gemini(history_msgs: list, system: str) -> Optional[str]:
             max_output_tokens=2048,
         )
 
-        # gemini-1.5-pro (best quality) → gemini-1.5-flash (fast fallback)
-        for model_name in ("gemini-1.5-pro", "gemini-1.5-flash"):
+        # Newest available models first
+        for model_name in ("gemini-2.5-flash", "gemini-2.0-flash"):
             try:
                 model = genai.GenerativeModel(
                     model_name,
@@ -377,13 +407,26 @@ def _call_groq(history_msgs: list, system: str) -> Optional[str]:
             if content.strip():
                 messages.append({"role": role, "content": content})
 
-        response = client.chat.completions.create(
-            messages=messages,
-            model="llama-3.3-70b-versatile",
-            max_tokens=1024,
-            temperature=0.7,
-        )
-        return response.choices[0].message.content
+        for groq_model in (
+            "llama-3.3-70b-versatile",   # Best quality, 100K TPD free
+            "llama-3.1-8b-instant",      # Fast fallback, separate quota
+            "llama3-8b-8192",            # Additional fallback
+        ):
+            try:
+                response = client.chat.completions.create(
+                    messages=messages,
+                    model=groq_model,
+                    max_tokens=1024,
+                    temperature=0.7,
+                )
+                result = response.choices[0].message.content
+                if result:
+                    print(f"[Groq] success with model: {groq_model}")
+                    return result
+            except Exception as model_err:
+                print(f"[Groq {groq_model} error] {model_err}")
+                continue
+        return None
     except Exception as e:
         print(f"[Groq error] {e}")
         return None
@@ -429,6 +472,7 @@ def _template_chat_fallback(message: str, matched: list, lang: str) -> str:
 @app.get("/")
 def root():
     return {"status": "ok", "service": "Lawyer Bhai AI", "version": "2.0.0"}
+
 
 
 # ─── GET /laws ─────────────────────────────────────────────────

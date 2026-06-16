@@ -368,22 +368,22 @@ def calculate_win_probability(query: str, matched_laws: List[Dict]) -> Dict:
 
     # ── Final score (starts at 40 — below neutral by design) ──────
     win_pct = 40 + law_quality + pos + neg + cat_adj + sev_adj
-    win_pct = round(max(20.0, min(72.0, win_pct)), 1)
+    win_pct = round(max(12.0, min(92.0, win_pct)), 1)  # 92 max: 100% certainty never exists in law
 
     # ── Contextual note based on detected signals ──────────────────
-    if win_pct >= 62:
+    if win_pct >= 75:
         confidence = "High"
-        note = ("Strong documented case — evidence and law are clearly in your favor."
+        note = ("Strong documented case — evidence and law clearly in your favor."
                 if neg > -5 else
-                "Good legal basis, but some gaps in evidence — strengthen documentation.")
-    elif win_pct >= 47:
+                "Good legal basis, but some evidence gaps — strengthen documentation.")
+    elif win_pct >= 50:
         confidence = "Medium"
-        note = ("Reasonable case — outcome will depend on specific evidence and facts."
+        note = ("Reasonable case — outcome depends on specific evidence and facts presented."
                 if neg > -8 else
                 "Moderate position — lack of written proof is a real weakness in court.")
     else:
         confidence = "Low"
-        note = ("Challenging situation — either evidence is thin or law may not fully support the claim."
+        note = ("Challenging situation — evidence is thin or law may not fully support the claim."
                 if neg > -12 else
                 "Very weak position — no documentary proof significantly hurts your case.")
 

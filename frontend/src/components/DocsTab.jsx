@@ -210,14 +210,14 @@ const DocsTab = ({ lang }) => {
             <div className="lg-accuracy-card" style={{ marginBottom: 20 }}>
               <div className="lg-accuracy-left">
                 <div className="lg-accuracy-label">{t("docs.strength")}</div>
-                <div className="lg-accuracy-pct">{Math.min(ocrData.accuracy.win_pct, 68)}<span>%</span></div>
+                <div className="lg-accuracy-pct">{ocrData.accuracy.win_pct}<span>%</span></div>
                 <div className={`lg-accuracy-badge lg-accuracy-badge--${ocrData.accuracy.confidence?.toLowerCase()}`}>
                   {ocrData.accuracy.confidence}
                 </div>
               </div>
               <div className="lg-accuracy-right">
                 <div className="lg-accuracy-bar-wrap">
-                  <div className="lg-accuracy-bar" style={{ width: Math.min(ocrData.accuracy.win_pct, 68) + "%" }} />
+                  <div className="lg-accuracy-bar" style={{ width: ocrData.accuracy.win_pct + "%" }} />
                 </div>
                 <div className="lg-accuracy-note">{ocrData.accuracy.note}</div>
               </div>

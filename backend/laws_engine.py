@@ -278,49 +278,113 @@ def find_laws(query: str, category: str = None, top_n: int = 5) -> List[Dict]:
 
 # ─────────────────────────────────────────────
 #  Accuracy / Win Probability Scorer
+#  Analyses the QUERY TEXT for strength/weakness signals
+#  in addition to how many laws matched.
 # ─────────────────────────────────────────────
 def calculate_win_probability(query: str, matched_laws: List[Dict]) -> Dict:
     if not matched_laws:
-        return {"win_pct": 50.0, "confidence": "Low", "note": "Insufficient legal precedent matched."}
+        return {
+            "win_pct": 38.0,
+            "confidence": "Low",
+            "note": "No specific law matched — describe situation in more detail.",
+        }
 
-    # Base from top match score
+    q = query.lower()
+
+    # ── Law match quality (0–20 pts) ──────────────────────────────
     top_score = matched_laws[0].get("score", 0)
-    base = min(top_score * 0.4, 30)  # max 30 from NLP score
+    law_quality = min(top_score * 0.22, 20)
 
-    # Multiple laws found = more established legal basis
-    law_count_bonus = min(len(matched_laws) * 4, 16)
+    # ── Negative phrases (checked first to block false positives) ──
+    NEGATIVE = {
+        "no receipt":-11, "no proof":-11, "no agreement":-11,
+        "no evidence":-10, "no contract":-11, "no written":-10,
+        "receipt nahi":-10, "saboot nahi":-10, "koi saboot nahi":-11,
+        "bina contract":-10, "bina agreement":-10, "bina receipt":-10,
+        "verbal only":-9, "verbal agreement":-8, "oral agreement":-8,
+        "zabani":-9, "no paperwork":-9,
+        "my fault":-13, "meri galti":-13,
+        "late payment":-8, "payment due":-7, "owe money":-9,
+        "already signed":-7, "consent diya":-6,
+        "already evicted":-7, "years ago":-6, "saalon pehle":-6,
+        "bohot purana":-5,
+    }
+    # Collect spans occupied by negative phrases so positives inside them don't fire
+    neg_spans: List[tuple] = []
+    neg = 0
+    for phrase, pts in NEGATIVE.items():
+        idx = q.find(phrase)
+        while idx != -1:
+            neg += pts
+            neg_spans.append((idx, idx + len(phrase)))
+            idx = q.find(phrase, idx + 1)
+    neg = max(neg, -22)
 
-    # Severity weighting
-    severities = [l.get("severity", "Medium") for l in matched_laws]
-    severity_factor = 0
-    if "High" in severities:
-        severity_factor = 8
-    elif "Medium" in severities:
-        severity_factor = 4
+    NEG_PREFIXES = ("no ", "not ", "without ", "bina ", "na ", "nahi ", "koi nahi")
 
-    # Category bias
-    categories = [l.get("category", "") for l in matched_laws]
-    if "Criminal" in categories:
-        cat_bias = -5  # criminal cases harder (prosecution burden)
-    elif "Constitutional" in categories:
-        cat_bias = 10  # constitutional rights cases — courts favor petitioner
-    elif "Family" in categories:
-        cat_bias = 5
+    def _positive_match(phrase: str) -> bool:
+        """True only if phrase appears outside a negative-phrase span and not after a negating word."""
+        idx = q.find(phrase)
+        while idx != -1:
+            end = idx + len(phrase)
+            in_neg = any(ns <= idx and end <= ne for ns, ne in neg_spans)
+            if not in_neg:
+                prefix = q[max(0, idx - 14):idx]
+                if not any(p in prefix for p in NEG_PREFIXES):
+                    return True
+            idx = q.find(phrase, idx + 1)
+        return False
+
+    # ── Positive signals: evidence / strong legal standing (+pts) ─
+    POSITIVE = {
+        "written":8, "contract":8, "agreement":7, "receipt":9,
+        "document":6, "proof":8, "evidence":8, "saboot":8,
+        "bank transfer":9, "screenshot":7, "recorded":7, "cctv":8,
+        "tahriri":8, "likha":7, "registered":6,
+        "notice":5, "fir":7, "complaint filed":6, "fir darj":7,
+        "court order":8, "stay order":8,
+        "witness":6, "gawah":6,
+    }
+
+    pos = sum(v for k, v in POSITIVE.items() if _positive_match(k))
+    pos = min(pos, 20)
+
+    # ── Category adjustment ────────────────────────────────────────
+    cats = [l.get("category", "") for l in matched_laws]
+    if "Constitutional" in cats:
+        cat_adj = 8    # courts receptive to fundamental rights petitions
+    elif "Labor" in cats:
+        cat_adj = 4    # labor courts historically pro-worker
+    elif "Family" in cats:
+        cat_adj = 3    # family courts accessible, sympathetic to genuine claims
+    elif "Criminal" in cats:
+        cat_adj = -4   # victim's FIR ≠ automatic conviction; prosecution has burden
     else:
-        cat_bias = 3
+        cat_adj = 0
 
-    win_pct = 50 + base + law_count_bonus + severity_factor + cat_bias
-    # Cap at 68 — this is keyword relevance, not a real win prediction
-    win_pct = round(max(28.0, min(68.0, win_pct)), 1)
+    # ── Severity adjustment ────────────────────────────────────────
+    sevs = [l.get("severity", "Medium") for l in matched_laws]
+    sev_adj = 5 if "High" in sevs else 2 if "Medium" in sevs else 0
 
-    if win_pct >= 60:
+    # ── Final score (starts at 40 — below neutral by design) ──────
+    win_pct = 40 + law_quality + pos + neg + cat_adj + sev_adj
+    win_pct = round(max(20.0, min(72.0, win_pct)), 1)
+
+    # ── Contextual note based on detected signals ──────────────────
+    if win_pct >= 62:
         confidence = "High"
-        note = "Is masle par mazboot qanooni bunyad hai."
-    elif win_pct >= 45:
+        note = ("Strong documented case — evidence and law are clearly in your favor."
+                if neg > -5 else
+                "Good legal basis, but some gaps in evidence — strengthen documentation.")
+    elif win_pct >= 47:
         confidence = "Medium"
-        note = "Case mein imkan hai — daleel aur waqeat par depend karega."
+        note = ("Reasonable case — outcome will depend on specific evidence and facts."
+                if neg > -8 else
+                "Moderate position — lack of written proof is a real weakness in court.")
     else:
         confidence = "Low"
-        note = "Case mushkil hai — kisi tajurbakar vakeel se zaroor milein."
+        note = ("Challenging situation — either evidence is thin or law may not fully support the claim."
+                if neg > -12 else
+                "Very weak position — no documentary proof significantly hurts your case.")
 
     return {"win_pct": win_pct, "confidence": confidence, "note": note}

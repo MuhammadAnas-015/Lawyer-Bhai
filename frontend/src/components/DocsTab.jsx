@@ -186,7 +186,7 @@ const DocsTab = ({ lang }) => {
           <InlineChat
             contextHistory={chatContext}
             replyLang={replyLang}
-            lang={replyLang}
+            lang={lang}
           />
         </div>
       )}

@@ -193,7 +193,7 @@ const LegalGuideTab = ({ lang }) => {
           <InlineChat
             contextHistory={chatContext}
             replyLang={replyLang}
-            lang={replyLang}
+            lang={lang === "ur" ? "ur" : replyLang}
           />
         </div>
       )}

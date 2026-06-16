@@ -12,6 +12,68 @@ const detectLang = (text) => {
   return words.filter(w => romanUrdu.includes(w)).length >= 3 ? "roman-ur" : "en";
 };
 
+// ── Document Score Card ──────────────────────────────────────────
+const GRADE_COLOR = { A: "#059669", "A-": "#059669", "B+": "#0E7A45", B: "#10B981",
+  "B-": "#F59E0B", "C+": "#F59E0B", C: "#EF4444", D: "#DC2626" };
+
+const CriteriaBar = ({ label, value, color = "#0E7A45" }) => (
+  <div style={{ marginBottom: 10 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 4, fontWeight: 600, color: "#374151" }}>
+      <span>{label}</span><span style={{ color }}>{value}%</span>
+    </div>
+    <div style={{ height: 7, background: "#E5E7EB", borderRadius: 6, overflow: "hidden" }}>
+      <div style={{ height: "100%", width: `${value}%`, background: color, borderRadius: 6, transition: "width 0.8s ease" }} />
+    </div>
+  </div>
+);
+
+const DocumentScoreCard = ({ docScore }) => {
+  if (!docScore) return null;
+  const gradeColor = GRADE_COLOR[docScore.grade] || "#6B7280";
+  const getBarColor = (v) => v >= 75 ? "#059669" : v >= 55 ? "#F59E0B" : "#EF4444";
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "18px 20px", marginBottom: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+        <div style={{ textAlign: "center", minWidth: 70 }}>
+          <div style={{ fontSize: 36, fontWeight: 900, color: gradeColor, lineHeight: 1 }}>{docScore.grade}</div>
+          <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 700, marginTop: 2 }}>GRADE</div>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{docScore.document_type}</div>
+          <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>{docScore.verdict}</div>
+          <div style={{ marginTop: 6, background: "#F3F4F6", borderRadius: 8, height: 8, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${docScore.overall}%`, background: gradeColor, transition: "width 0.8s ease" }} />
+          </div>
+          <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Overall: {docScore.overall}%</div>
+        </div>
+      </div>
+      {/* 4 criteria */}
+      <CriteriaBar label="Completeness" value={docScore.completeness} color={getBarColor(docScore.completeness)} />
+      <CriteriaBar label="Legal Validity" value={docScore.legal_validity} color={getBarColor(docScore.legal_validity)} />
+      <CriteriaBar label="Clarity" value={docScore.clarity} color={getBarColor(docScore.clarity)} />
+      <CriteriaBar label="Enforceability" value={docScore.enforceability} color={getBarColor(docScore.enforceability)} />
+      {/* Strengths & weaknesses */}
+      {(docScore.strengths?.length > 0 || docScore.weaknesses?.length > 0) && (
+        <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
+          {docScore.strengths?.length > 0 && (
+            <div style={{ flex: 1, background: "#F0FDF4", borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#059669", marginBottom: 6 }}>✓ STRENGTHS</div>
+              {docScore.strengths.map((s, i) => <div key={i} style={{ fontSize: 12, color: "#166534", marginBottom: 3 }}>• {s}</div>)}
+            </div>
+          )}
+          {docScore.weaknesses?.length > 0 && (
+            <div style={{ flex: 1, background: "#FFF7ED", borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: "#D97706", marginBottom: 6 }}>⚠ WEAKNESSES</div>
+              {docScore.weaknesses.map((w, i) => <div key={i} style={{ fontSize: 12, color: "#92400E", marginBottom: 3 }}>• {w}</div>)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const DocsTab = ({ lang }) => {
   const { t } = useT();
   const [status, setStatus]       = useState("idle");    // idle | uploading | analyzing | done
@@ -141,24 +203,8 @@ const DocsTab = ({ lang }) => {
             </div>
           )}
 
-          {/* Accuracy card */}
-          {ocrData.accuracy && (
-            <div className="lg-accuracy-card" style={{ marginBottom: 20 }}>
-              <div className="lg-accuracy-left">
-                <div className="lg-accuracy-label">{t("docs.strength")}</div>
-                <div className="lg-accuracy-pct">{ocrData.accuracy.win_pct}<span>%</span></div>
-                <div className={`lg-accuracy-badge lg-accuracy-badge--${ocrData.accuracy.confidence?.toLowerCase()}`}>
-                  {ocrData.accuracy.confidence}
-                </div>
-              </div>
-              <div className="lg-accuracy-right">
-                <div className="lg-accuracy-bar-wrap">
-                  <div className="lg-accuracy-bar" style={{ width: ocrData.accuracy.win_pct + "%" }} />
-                </div>
-                <div className="lg-accuracy-note">{ocrData.accuracy.note}</div>
-              </div>
-            </div>
-          )}
+          {/* Document Score Card — AI-powered 4-criteria analysis */}
+          <DocumentScoreCard docScore={ocrData.doc_score} />
 
           {/* AI Analysis */}
           {aiAnalysis && (

@@ -6,6 +6,55 @@ import InlineChat from "./InlineChat";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// ── Case Bias Meter ─────────────────────────────────────────────
+const CaseBiasMeter = ({ bias, lang }) => {
+  if (!bias) return null;
+  const u = Math.round(bias.user_favor ?? 50);
+  const o = 100 - u;
+  const userLabel  = lang === "ur" ? "آپ کا مؤقف" : lang === "roman-ur" ? "Aapka moqif" : "Your Position";
+  const oppLabel   = lang === "ur" ? "مخالف فریق" : lang === "roman-ur" ? "Opponent" : "Opponent";
+  const strongSide = u >= 55 ? "user" : u <= 45 ? "opponent" : "neutral";
+  const barColor   = strongSide === "user" ? "#0E7A45" : strongSide === "opponent" ? "#DC2626" : "#F59E0B";
+
+  return (
+    <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "18px 20px", marginBottom: 16, boxShadow: "0 1px 6px rgba(0,0,0,0.06)" }}>
+      {/* Title */}
+      <div style={{ fontSize: 11, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 14 }}>
+        {lang === "ur" ? "کیس کا توازن" : lang === "roman-ur" ? "Case Ka Tawazun" : "Case Balance — AI Assessment"}
+      </div>
+
+      {/* Split bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#059669", minWidth: 32, textAlign: "right" }}>{u}%</div>
+        <div style={{ flex: 1, height: 14, background: "#FEE2E2", borderRadius: 10, overflow: "hidden", display: "flex" }}>
+          <div style={{ width: `${u}%`, background: "linear-gradient(90deg, #0E7A45, #10B981)", borderRadius: "10px 0 0 10px", transition: "width 1s ease" }} />
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#DC2626", minWidth: 32 }}>{o}%</div>
+      </div>
+
+      {/* Labels */}
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#059669" }}>✓ {userLabel}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#DC2626" }}>✗ {oppLabel}</span>
+      </div>
+
+      {/* Dominant factor */}
+      {bias.dominant_factor && (
+        <div style={{ background: "#F8FAFB", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#374151", lineHeight: 1.5, borderLeft: `3px solid ${barColor}` }}>
+          {bias.dominant_factor}
+        </div>
+      )}
+
+      {/* Key risk */}
+      {bias.key_risk && (
+        <div style={{ marginTop: 8, fontSize: 12, color: "#B45309", display: "flex", gap: 6 }}>
+          <span>⚠</span><span>{bias.key_risk}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const LegalGuideTab = ({ lang }) => {
   const { t } = useT();
   const [caseText, setCaseText] = useState("");
@@ -13,6 +62,7 @@ const LegalGuideTab = ({ lang }) => {
   const [aiResponse, setAiResponse]   = useState(null);
   const [matchedLaws, setMatchedLaws] = useState([]);
   const [accuracy, setAccuracy]       = useState(null);
+  const [caseBias, setCaseBias]       = useState(null);
   const [chatContext, setChatContext]  = useState([]);
   const [replyLang, setReplyLang]     = useState("en");
   const [apiOnline, setApiOnline]     = useState(null);
@@ -51,6 +101,7 @@ const LegalGuideTab = ({ lang }) => {
         punishment: l.punishment, severity: l.severity,
       })));
       setAccuracy(data.accuracy || null);
+      setCaseBias(data.case_bias || null);
       setChatContext([
         { role: "user", content: caseText },
         { role: "assistant", content: data.reply },
@@ -62,7 +113,7 @@ const LegalGuideTab = ({ lang }) => {
     }
   };
 
-  const reset = () => { setStatus("idle"); setCaseText(""); setAiResponse(null); setMatchedLaws([]); setAccuracy(null); setChatContext([]); };
+  const reset = () => { setStatus("idle"); setCaseText(""); setAiResponse(null); setMatchedLaws([]); setAccuracy(null); setCaseBias(null); setChatContext([]); };
 
   return (
     <div className="lg-wrap">
@@ -124,8 +175,8 @@ const LegalGuideTab = ({ lang }) => {
             </button>
           </div>
 
-          {/* Accuracy card */}
-          {accuracy && (
+          {/* Case Strength (keyword-based) — only if no AI bias available */}
+          {accuracy && !caseBias && (
             <div className="lg-accuracy-card" style={{ marginBottom: 20 }}>
               <div className="lg-accuracy-left">
                 <div className="lg-accuracy-label">{t("lg.winChance")}</div>
@@ -142,6 +193,9 @@ const LegalGuideTab = ({ lang }) => {
               </div>
             </div>
           )}
+
+          {/* Case Bias Meter — AI-powered, shows when available */}
+          <CaseBiasMeter bias={caseBias} lang={replyLang} />
 
           {/* AI Response */}
           {aiResponse && (

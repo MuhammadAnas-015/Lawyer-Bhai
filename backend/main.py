@@ -223,6 +223,100 @@ def _build_law_context(laws: list) -> str:
     return ctx
 
 
+def _call_llm_json(prompt: str) -> Optional[dict]:
+    """Call Gemini Flash with a JSON-output prompt. Low temp for consistency."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    try:
+        import google.generativeai as genai
+        import json
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            "gemini-1.5-flash",
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.1,
+                max_output_tokens=600,
+            ),
+        )
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        # Strip markdown fences if model wraps output
+        if "```" in text:
+            parts = text.split("```")
+            for p in parts:
+                p = p.strip()
+                if p.startswith("json"):
+                    p = p[4:].strip()
+                try:
+                    return json.loads(p)
+                except Exception:
+                    continue
+        return json.loads(text)
+    except Exception as e:
+        print(f"[LLM JSON error] {e}")
+        return None
+
+
+def _assess_document(text: str) -> Optional[dict]:
+    """Ask Gemini to score a legal document on 4 Pakistani-law criteria."""
+    prompt = f"""You are a Pakistani legal document analyst with 20 years of experience.
+Analyze the document below and return ONLY valid JSON — no markdown, no explanation, nothing else.
+
+Return exactly this shape:
+{{
+  "document_type": "Rent Agreement",
+  "completeness": 75,
+  "legal_validity": 80,
+  "clarity": 70,
+  "enforceability": 65,
+  "overall": 73,
+  "grade": "B+",
+  "strengths": ["Both parties CNIC present", "Stamp paper attached"],
+  "weaknesses": ["No arbitration clause", "Penalty terms vague"],
+  "verdict": "Legally valid but needs one or two clauses for stronger enforceability"
+}}
+
+Scoring guide (0–100 each, be strict):
+- completeness: Are all essential sections present? (parties, date, terms, signatures, witnesses)
+- legal_validity: Is it compliant with Pakistani law? (stamp duty, CNIC, proper format)
+- clarity: Are clauses clear and unambiguous?
+- enforceability: Can a Pakistani court enforce this without ambiguity?
+- overall: Weighted average of the four
+- grade: A (90+), A- (85+), B+ (80+), B (75+), B- (70+), C+ (65+), C (55+), D (<55)
+
+Document text:
+{text[:2800]}"""
+    return _call_llm_json(prompt)
+
+
+def _assess_case_bias(situation: str, ai_analysis: str) -> Optional[dict]:
+    """Ask Gemini to assess which party has stronger legal standing under Pakistani law."""
+    prompt = f"""You are a Senior Advocate of the High Court of Pakistan with 25 years of experience.
+Based on the situation and the legal analysis below, assess which party has stronger legal standing.
+Return ONLY valid JSON — no markdown, no explanation.
+
+Return exactly this shape:
+{{
+  "user_favor": 65,
+  "opponent_favor": 35,
+  "dominant_factor": "User has written contract and payment receipts — strong evidentiary position under Punjab Rented Premises Act",
+  "key_risk": "Must file complaint within 3-year limitation period (Limitation Act 1908)",
+  "honest_note": "Landlord has violated the Rent Restriction Ordinance — user's position is strong"
+}}
+
+Rules:
+- user_favor + opponent_favor MUST equal exactly 100
+- Be honest — if the user's claim is legally weak or they are at fault, reflect that accurately
+- user_favor below 40 means the opponent's position is legally stronger
+- Base assessment purely on Pakistani law and facts stated, not sympathy
+
+Situation: {situation[:600]}
+
+Legal Analysis: {ai_analysis[:700]}"""
+    return _call_llm_json(prompt)
+
+
 def _call_gemini(history_msgs: list, system: str) -> Optional[str]:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -423,12 +517,15 @@ async def ocr_document(file: UploadFile = File(...)):
     matched = smart_find_laws(extracted_text, top_n=5)
     accuracy = calculate_win_probability(extracted_text, matched)
 
+    doc_score = _assess_document(extracted_text)
+
     return {
         "filename": file.filename,
         "extracted_text": extracted_text[:3000],
         "char_count": len(extracted_text),
         "matched_laws": matched,
         "accuracy": accuracy,
+        "doc_score": doc_score,
         "disclaimer": "Ye analysis sirf maloomat ke liye hai."
     }
 
@@ -472,7 +569,18 @@ def chat(req: ChatRequest):
     if not response:
         response = _template_chat_fallback(req.message, matched, lang)
 
-    return {"reply": response, "matched_laws": matched, "accuracy": accuracy, "ai_provider": ai_provider}
+    # Case bias assessment — only for first message (no history), skip follow-ups
+    case_bias = None
+    if len(req.history or []) <= 1 and ai_provider != "rule-based":
+        case_bias = _assess_case_bias(req.message, response)
+
+    return {
+        "reply": response,
+        "matched_laws": matched,
+        "accuracy": accuracy,
+        "case_bias": case_bias,
+        "ai_provider": ai_provider,
+    }
 
 
 # ─── Advice generator (language-aware) ─────────────────────────

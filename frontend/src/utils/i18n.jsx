@@ -34,7 +34,7 @@ export const STRINGS = {
   "lg.searchBtn":   { en: "Find Laws", ur: "قانون ڈھونڈیں" },
   "lg.searching":   { en: "Searching…", ur: "تلاش جاری…" },
   "lg.processing":  { en: "Searching for matches in Pakistani laws…", ur: "پاکستانی قوانین میں میچ تلاش کیا جا رہا ہے…" },
-  "lg.winChance":   { en: "Your Chances", ur: "آپ کے امکانات" },
+  "lg.winChance":   { en: "Case Strength", ur: "کیس کی مضبوطی" },
   "lg.confidence":  { en: "Confidence", ur: "اعتماد" },
   "lg.aiAdvice":    { en: "AI Advice", ur: "AI مشورہ" },
   "lg.demoMode":    { en: "Backend offline — demo mode", ur: "بیک اینڈ آف لائن — ڈیمو موڈ" },
@@ -134,7 +134,7 @@ export const STRINGS = {
   "chat.name":   { en: "Lawyer Bhai AI", ur: "لائر بھائی AI" },
   "chat.status": { en: "Online — Pakistani Law Expert", ur: "آن لائن — پاکستانی قانون ماہر" },
   "chat.greeting": { en: "Assalam-o-Alaikum! I am Lawyer Bhai AI. Ask any legal question — I'll help! 👋", ur: "السلام علیکم! میں لائر بھائی AI ہوں۔ کوئی بھی قانونی سوال پوچھیں — میں مدد کروں گا! 👋" },
-  "chat.placeholder": { en: "Type your question…", ur: "اپنا سوال لکھیں…" },
+  "chat.placeholder": { en: "Type your legal question…", ur: "اپنا قانونی سوال لکھیں…" },
 
   // ── Auth ──
   "auth.welcome":  { en: "Welcome Back", ur: "خوش آمدید" },

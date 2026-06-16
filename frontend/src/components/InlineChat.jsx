@@ -25,16 +25,13 @@ const AiAvatar = () => (
   </div>
 );
 
-/**
- * Inline chat component embedded inside a page (DocsTab, LegalGuideTab).
- *
- * Props:
- *   contextHistory  – [{role: "user"|"assistant", content: "..."}] — sent to backend as context
- *   replyLang       – "en" | "roman-ur" | "ur"
- *   placeholder     – input placeholder text
- *   headerLabel     – label shown above chat e.g. "Is document ke baare mein aur poochein"
- */
-const InlineChat = ({ contextHistory = [], replyLang = "en", placeholder = "Follow-up sawaal poochein...", headerLabel = "Aur sawaal poochein" }) => {
+const InlineChat = ({ contextHistory = [], replyLang = "en", placeholder, lang = "en" }) => {
+  const defaultPlaceholder = lang === "ur"
+    ? "مزید سوال پوچھیں..."
+    : lang === "roman-ur"
+    ? "Aur kuch poochein..."
+    : "Ask a follow-up question…";
+  placeholder = placeholder || defaultPlaceholder;
   const [msgs, setMsgs]     = useState([]);
   const [input, setInput]   = useState("");
   const [typing, setTyping] = useState(false);
@@ -74,50 +71,27 @@ const InlineChat = ({ contextHistory = [], replyLang = "en", placeholder = "Foll
     }
   };
 
+  const dividerLabel = lang === "ur"
+    ? "مزید سوال پوچھیں"
+    : lang === "roman-ur"
+    ? "Aur sawaal poochein"
+    : "Ask follow-up questions";
+
   return (
-    <div style={{
-      marginTop: 24, border: "1.5px solid #E5E7EB", borderRadius: 16,
-      overflow: "hidden", background: "#fff",
-      boxShadow: "0 2px 12px rgba(0,0,0,0.06)"
-    }}>
-      {/* Header */}
-      <div style={{
-        background: "linear-gradient(135deg, #0E7A45 0%, #065F38 100%)",
-        padding: "12px 18px", display: "flex", alignItems: "center", gap: 10
-      }}>
-        <div style={{
-          width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.18)",
-          display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
-        }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </div>
-        <div>
-          <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fff" }}>LawyerGPT</div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>{headerLabel}</div>
-        </div>
-        <div style={{
-          marginLeft: "auto", display: "flex", alignItems: "center", gap: 5,
-          fontSize: 11, color: "rgba(255,255,255,0.85)", fontWeight: 600
-        }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ADE80", display: "inline-block" }} />
-          Online
-        </div>
+    <div style={{ marginTop: 28 }}>
+      {/* Simple divider */}
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <div style={{ borderTop: "1.5px dashed #D1D5DB" }} />
+        <span style={{
+          position: "absolute", top: -10, left: 0,
+          background: "#F9FAFB", paddingRight: 10,
+          fontSize: 11, color: "#9CA3AF", fontWeight: 700,
+          textTransform: "uppercase", letterSpacing: "0.07em"
+        }}>{dividerLabel}</span>
       </div>
 
-      {/* Messages */}
-      {msgs.length === 0 && !typing ? (
-        <div style={{
-          padding: "28px 20px", textAlign: "center",
-          color: "#9CA3AF", fontSize: 13
-        }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round" style={{ margin: "0 auto 10px", display: "block" }}>
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          Is baare mein koi bhi sawaal poochein...
-        </div>
-      ) : (
+      {/* Messages — only shown after first message */}
+      {(msgs.length > 0 || typing) && (
         <div style={{
           padding: "14px 14px", display: "flex", flexDirection: "column", gap: 10,
           maxHeight: 340, overflowY: "auto", background: "#F8FAFB",
@@ -158,7 +132,7 @@ const InlineChat = ({ contextHistory = [], replyLang = "en", placeholder = "Foll
       )}
 
       {/* Input */}
-      <div style={{ padding: "10px 14px", background: "#fff", borderTop: "1px solid #EEF0F2", display: "flex", gap: 8, alignItems: "flex-end" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-end", marginTop: msgs.length > 0 || typing ? 10 : 0 }}>
         <textarea
           rows={1}
           placeholder={placeholder}

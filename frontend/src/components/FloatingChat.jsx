@@ -6,10 +6,20 @@ import { renderMd } from "../utils/renderMd.jsx";
 const detectLang = (text) => {
   if (/[؀-ۿ]/.test(text)) return "ur";
   const t = text.toLowerCase();
-  const romanUrdu = ["mera","meri","mujhe","kya","hai","kaise","karna","nahi","aap","ka","ki","ke","ko","mein","hain","wala","kar","raha","rahi","gaya","kiya","masla","kiraya","talaq","naukri","zameen","chori","dhoka","makan","shadi","bachay","case","nikah","sawaal","batao","chahiye","hota","hoti","mere","teri","tere","hamara","apna","lekin","agar","bhi","sirf","hum","tum","woh","yeh","koi","sab","ky","hy","hn","krna","kro","kren","bhai","yar","yr","poochna","haan","theek","acha","shukriya","karo","dena","lena","jana","aana","krein","krain","krdo","hoga","hogi","tha","thi","the","hun","hoon","ap","he"];
+  // Only unambiguous Roman Urdu words — removed English false-positives like "the", "he", "ka", "ki", "ke"
+  const romanUrdu = [
+    "mera","meri","mujhe","kya","kaise","karna","nahi","aap","wala",
+    "raha","rahi","gaya","kiya","masla","kiraya","talaq","naukri",
+    "zameen","chori","dhoka","makan","shadi","bachay","nikah","sawaal",
+    "batao","chahiye","hota","hoti","mere","teri","tere","hamara","apna",
+    "lekin","agar","bhi","sirf","hum","tum","woh","yeh","koi","sab",
+    "krna","kro","kren","bhai","poochna","haan","theek","acha","shukriya",
+    "krein","krain","krdo","hoga","hogi","hun","hoon","mein","hain","hai",
+    "krha","krhe","nahin","hona","lagta","lagti","chahta","chahti"
+  ];
   const words = t.split(/\s+/);
-  const hits = words.filter((w) => romanUrdu.includes(w)).length;
-  return hits >= 2 ? "roman-ur" : "en";
+  const hits = words.filter(w => romanUrdu.includes(w)).length;
+  return hits >= 3 ? "roman-ur" : "en";
 };
 
 
@@ -33,12 +43,18 @@ const TypingDots = () => (
   </div>
 );
 
+const GREETINGS = {
+  ur: "السلام علیکم! 👋 میں LawyerGPT ہوں — آپ کا ذاتی AI وکیل۔\n\nکوئی بھی قانونی سوال پوچھیں — FIR، جائیداد، خاندان، ملازمت، فراڈ — پاکستانی قانون کے مطابق سیدھا جواب دوں گا۔",
+  en: "Assalam-o-Alaikum! 👋 I'm LawyerGPT — your personal AI lawyer.\n\nAsk me anything about Pakistani law — FIR, property, family, employment, fraud, or any legal matter. I give direct answers, no referrals.",
+  "roman-ur": "Assalam o Alaikum! 👋 Main LawyerGPT hoon — aapka personal AI lawyer.\n\nApna koi bhi legal masla poochein — FIR, talaq, property, job, fraud, ya kuch bhi. Main Pakistani qanoon ke mutabiq seedha jawab dunga.",
+};
+
 const FloatingChat = ({ lang = "en" }) => {
   const { t } = useT();
   const [open, setOpen]     = useState(false);
-  const [msgs, setMsgs]     = useState([{
+  const [msgs, setMsgs]     = useState(() => [{
     role: "ai",
-    text: "Assalam o Alaikum! 👋 Main LawyerGPT hoon — aapka personal AI lawyer.\n\nApna koi bhi legal masla poochein — FIR, talaq, property, job, fraud, ya kuch bhi. Main Pakistani qanoon ke mutabiq seedha jawab dunga.",
+    text: GREETINGS[lang] || GREETINGS["roman-ur"],
     provider: null
   }]);
   const [input, setInput]   = useState("");
@@ -109,7 +125,7 @@ const FloatingChat = ({ lang = "en" }) => {
               </div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", display: "flex", alignItems: "center", gap: 5, marginTop: 2 }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#4ADE80", display: "inline-block" }} />
-                Pakistani Law Expert — Online
+                {t("chat.status")}
               </div>
             </div>
             <button onClick={() => setOpen(false)} style={{
@@ -201,7 +217,7 @@ const FloatingChat = ({ lang = "en" }) => {
               <textarea
                 id="fchat-inp"
                 rows={1}
-                placeholder="Apna legal masla likhein..."
+                placeholder={t("chat.placeholder")}
                 value={input}
                 onChange={(e) => {
                   setInput(e.target.value);

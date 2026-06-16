@@ -8,8 +8,8 @@ import { useT } from "../utils/i18n.jsx";
 const detectLang = (text) => {
   if (/[؀-ۿ]/.test(text)) return "ur";
   const words = text.toLowerCase().split(/\s+/);
-  const romanUrdu = ["mera","meri","kya","hai","aap","ka","ki","ke","ko","mein","nahi","kar","masla","case","nikah"];
-  return words.filter(w => romanUrdu.includes(w)).length >= 2 ? "roman-ur" : "en";
+  const romanUrdu = ["mera","meri","kya","kaise","aap","mein","nahi","masla","nikah","kiraya","hota","hoti","karna","chahiye","wala","raha","rahi","gaya","hum","tum","woh","yeh","lekin","agar","bhi","sirf"];
+  return words.filter(w => romanUrdu.includes(w)).length >= 3 ? "roman-ur" : "en";
 };
 
 const DocsTab = ({ lang }) => {
@@ -163,46 +163,30 @@ const DocsTab = ({ lang }) => {
           {/* AI Analysis */}
           {aiAnalysis && (
             <div style={{
-              background: "#fff", border: "1.5px solid #E8F5EE", borderRadius: 14,
-              marginBottom: 4, overflow: "hidden",
-              boxShadow: "0 2px 12px rgba(14,122,69,0.08)"
+              background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12,
+              marginBottom: 4, padding: "16px 20px",
+              boxShadow: "0 1px 6px rgba(0,0,0,0.06)"
             }}>
-              <div style={{
-                background: "linear-gradient(135deg, #0E7A45 0%, #065F38 100%)",
-                padding: "12px 18px", display: "flex", alignItems: "center", gap: 10
-              }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: "50%", background: "#E8F5EE",
+                  border: "1.5px solid #BBE9CE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fff" }}>LawyerGPT — Document Analysis</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>AI se legal review</div>
-                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#0E7A45", textTransform: "uppercase", letterSpacing: "0.04em" }}>LawyerGPT — Document Review</span>
               </div>
-              <div style={{ padding: "18px 20px", fontSize: 14, lineHeight: 1.7, color: "#1F2937" }}>
+              <div style={{ fontSize: 14, lineHeight: 1.75, color: "#1F2937" }}>
                 {renderMd(aiAnalysis)}
               </div>
             </div>
-          )}
-
-          {/* Extracted text (collapsible) */}
-          {ocrData.extracted_text && (
-            <details style={{ marginTop: 12, marginBottom: 4 }}>
-              <summary style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", cursor: "pointer", padding: "8px 0", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Extracted Raw Text ({ocrData.char_count} chars)
-              </summary>
-              <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10, padding: "14px 16px", marginTop: 8, fontSize: 12.5, color: "#374151", lineHeight: 1.6, maxHeight: 200, overflowY: "auto", whiteSpace: "pre-wrap" }}>
-                {ocrData.extracted_text.slice(0, 1200)}{ocrData.extracted_text.length > 1200 ? "…" : ""}
-              </div>
-            </details>
           )}
 
           {/* Inline chat */}
           <InlineChat
             contextHistory={chatContext}
             replyLang={replyLang}
-            placeholder="Is document ke baare mein kuch aur poochein..."
-            headerLabel="Document ke baare mein aur sawaal poochein"
+            lang={replyLang}
           />
         </div>
       )}

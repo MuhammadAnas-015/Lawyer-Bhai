@@ -143,26 +143,23 @@ const LegalGuideTab = ({ lang }) => {
             </div>
           )}
 
-          {/* AI Response card */}
+          {/* AI Response */}
           {aiResponse && (
             <div style={{
-              background: "#fff", border: "1.5px solid #E8F5EE", borderRadius: 14,
-              marginBottom: 4, overflow: "hidden",
-              boxShadow: "0 2px 12px rgba(14,122,69,0.08)"
+              background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12,
+              marginBottom: 4, padding: "16px 20px",
+              boxShadow: "0 1px 6px rgba(0,0,0,0.06)"
             }}>
-              <div style={{
-                background: "linear-gradient(135deg, #0E7A45 0%, #065F38 100%)",
-                padding: "12px 18px", display: "flex", alignItems: "center", gap: 10
-              }}>
-                <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                <div style={{
+                  width: 26, height: 26, borderRadius: "50%", background: "#E8F5EE",
+                  border: "1.5px solid #BBE9CE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0E7A45" strokeWidth="2.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
-                <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 800, color: "#fff" }}>LawyerGPT — Legal Analysis</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.8)" }}>Pakistani law ke mutabiq</div>
-                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#0E7A45", textTransform: "uppercase", letterSpacing: "0.04em" }}>LawyerGPT</span>
               </div>
-              <div style={{ padding: "18px 20px", fontSize: 14, lineHeight: 1.7, color: "#1F2937" }}>
+              <div style={{ fontSize: 14, lineHeight: 1.75, color: "#1F2937" }}>
                 {renderMd(aiResponse)}
               </div>
             </div>
@@ -196,8 +193,7 @@ const LegalGuideTab = ({ lang }) => {
           <InlineChat
             contextHistory={chatContext}
             replyLang={replyLang}
-            placeholder="Is masle ke baare mein aur poochein..."
-            headerLabel="Aur sawaal poochein — LawyerGPT maujood hai"
+            lang={replyLang}
           />
         </div>
       )}

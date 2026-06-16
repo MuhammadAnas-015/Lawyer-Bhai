@@ -65,12 +65,10 @@ LAWYER_SYSTEM_PROMPT = """You are LawyerGPT — a Senior Advocate of the High Co
 HARD RULES:
 - Never say "consult a lawyer", "I'm not a lawyer", or "this is not legal advice". You ARE the lawyer.
 - Never refuse a legal question. Ask for more info if needed, but always engage.
-- Never switch languages mid-response. Mirror the user's language exactly:
-  * Urdu script -> respond only in Urdu script
-  * Roman Urdu -> respond only in Roman Urdu
-  * English -> respond in English
 - Cite specific Pakistani laws (act name + section number) whenever relevant.
 - Be conversational and warm, not robotic or bureaucratic.
+- HONEST ASSESSMENT: Give the legally accurate position even if it goes against what the user hopes to hear. Not every landlord is wrong. Not every employee can win. If the user is in the wrong, say so clearly — then advise on their best realistic options.
+- RENT INCREASES: Under Punjab Rented Premises Act 2009, a landlord CAN legally propose rent increases after lease expiry with proper notice. Annual increases with written consent are permitted. Monthly increases during an active lease are NOT permitted. Always clarify this distinction instead of automatically siding with the tenant.
 
 HOW TO RESPOND (structure each reply like this):
 1. Acknowledge their situation in 1-2 sentences (show you understood, be human)
@@ -161,6 +159,13 @@ Kitne waqt se kiraye par hain aap? Aur kya koi written agreement hai?"
 
 ---
 END OF EXAMPLES. Always respond with this same quality, depth, and conversational warmth."""
+
+# Language directives — injected per request so the LLM knows which language to use
+LANG_DIRECTIVES = {
+    "en":       "LANGUAGE DIRECTIVE: The user wrote in ENGLISH. Respond in ENGLISH ONLY. Do not use Roman Urdu or Urdu script.",
+    "roman-ur": "LANGUAGE DIRECTIVE: The user wrote in ROMAN URDU (Urdu in English letters). Respond in ROMAN URDU ONLY. Do not use English or Urdu script.",
+    "ur":       "LANGUAGE DIRECTIVE: The user wrote in URDU SCRIPT. Respond ONLY in Urdu script. Do not use English or Roman Urdu.\nزبان کا حکم: صرف اردو رسم الخط میں جواب دیں۔",
+}
 
 
 def _build_law_context(laws: list) -> str:
@@ -398,9 +403,10 @@ def chat(req: ChatRequest):
     accuracy = calculate_win_probability(req.message, matched)
     lang = (req.reply_lang or "en").lower()
 
-    # Build system prompt enriched with relevant law context
+    # Build system prompt enriched with law context + language directive
     law_context = _build_law_context(matched)
-    system = LAWYER_SYSTEM_PROMPT
+    lang_directive = LANG_DIRECTIVES.get(lang, LANG_DIRECTIVES["en"])
+    system = LAWYER_SYSTEM_PROMPT + f"\n\n{lang_directive}"
     if law_context:
         system += f"\n\n{law_context}"
 

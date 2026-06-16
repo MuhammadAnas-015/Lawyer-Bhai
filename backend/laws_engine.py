@@ -310,14 +310,15 @@ def calculate_win_probability(query: str, matched_laws: List[Dict]) -> Dict:
         cat_bias = 3
 
     win_pct = 50 + base + law_count_bonus + severity_factor + cat_bias
-    win_pct = round(max(28.0, min(88.0, win_pct)), 1)
+    # Cap at 68 — this is keyword relevance, not a real win prediction
+    win_pct = round(max(28.0, min(68.0, win_pct)), 1)
 
-    if win_pct >= 70:
+    if win_pct >= 60:
         confidence = "High"
-        note = "Aapke haq mein mazboot qanooni bunyad hai."
-    elif win_pct >= 50:
+        note = "Is masle par mazboot qanooni bunyad hai."
+    elif win_pct >= 45:
         confidence = "Medium"
-        note = "Case mein imkan hai magar daleel mazboot karni hogi."
+        note = "Case mein imkan hai — daleel aur waqeat par depend karega."
     else:
         confidence = "Low"
         note = "Case mushkil hai — kisi tajurbakar vakeel se zaroor milein."

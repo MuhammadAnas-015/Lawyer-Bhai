@@ -175,24 +175,28 @@ const LegalGuideTab = ({ lang }) => {
             </button>
           </div>
 
-          {/* Case Strength (keyword-based) — only if no AI bias available */}
-          {accuracy && !caseBias && (
-            <div className="lg-accuracy-card" style={{ marginBottom: 20 }}>
-              <div className="lg-accuracy-left">
-                <div className="lg-accuracy-label">{t("lg.winChance")}</div>
-                <div className="lg-accuracy-pct">{accuracy.win_pct}<span>%</span></div>
-                <div className={`lg-accuracy-badge lg-accuracy-badge--${accuracy.confidence?.toLowerCase()}`}>
-                  {accuracy.confidence} {t("lg.confidence")}
+          {/* Case Strength (keyword-based) — only shown when AI bias not available */}
+          {accuracy && !caseBias && (() => {
+            const pct = Math.min(accuracy.win_pct ?? 0, 68);
+            const conf = pct >= 60 ? "high" : pct >= 45 ? "medium" : "low";
+            return (
+              <div className="lg-accuracy-card" style={{ marginBottom: 20 }}>
+                <div className="lg-accuracy-left">
+                  <div className="lg-accuracy-label">{t("lg.winChance")}</div>
+                  <div className="lg-accuracy-pct">{pct}<span>%</span></div>
+                  <div className={`lg-accuracy-badge lg-accuracy-badge--${conf}`}>
+                    {accuracy.confidence} {t("lg.confidence")}
+                  </div>
+                </div>
+                <div className="lg-accuracy-right">
+                  <div className="lg-accuracy-bar-wrap">
+                    <div className="lg-accuracy-bar" style={{ width: pct + "%" }} />
+                  </div>
+                  <div className="lg-accuracy-note">{accuracy.note}</div>
                 </div>
               </div>
-              <div className="lg-accuracy-right">
-                <div className="lg-accuracy-bar-wrap">
-                  <div className="lg-accuracy-bar" style={{ width: accuracy.win_pct + "%" }} />
-                </div>
-                <div className="lg-accuracy-note">{accuracy.note}</div>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Case Bias Meter — AI-powered, shows when available */}
           <CaseBiasMeter bias={caseBias} lang={replyLang} />

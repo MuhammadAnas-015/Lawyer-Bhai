@@ -203,8 +203,26 @@ const DocsTab = ({ lang }) => {
             </div>
           )}
 
-          {/* Document Score Card — AI-powered 4-criteria analysis */}
-          <DocumentScoreCard docScore={ocrData.doc_score} />
+          {/* Document Score Card — AI-powered (new backend) or keyword fallback */}
+          {ocrData.doc_score ? (
+            <DocumentScoreCard docScore={ocrData.doc_score} />
+          ) : ocrData.accuracy && (
+            <div className="lg-accuracy-card" style={{ marginBottom: 20 }}>
+              <div className="lg-accuracy-left">
+                <div className="lg-accuracy-label">{t("docs.strength")}</div>
+                <div className="lg-accuracy-pct">{Math.min(ocrData.accuracy.win_pct, 68)}<span>%</span></div>
+                <div className={`lg-accuracy-badge lg-accuracy-badge--${ocrData.accuracy.confidence?.toLowerCase()}`}>
+                  {ocrData.accuracy.confidence}
+                </div>
+              </div>
+              <div className="lg-accuracy-right">
+                <div className="lg-accuracy-bar-wrap">
+                  <div className="lg-accuracy-bar" style={{ width: Math.min(ocrData.accuracy.win_pct, 68) + "%" }} />
+                </div>
+                <div className="lg-accuracy-note">{ocrData.accuracy.note}</div>
+              </div>
+            </div>
+          )}
 
           {/* AI Analysis */}
           {aiAnalysis && (

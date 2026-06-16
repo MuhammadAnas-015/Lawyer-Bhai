@@ -6,20 +6,34 @@ import { renderMd } from "../utils/renderMd.jsx";
 const detectLang = (text) => {
   if (/[؀-ۿ]/.test(text)) return "ur";
   const t = text.toLowerCase();
-  // Only unambiguous Roman Urdu words — removed English false-positives like "the", "he", "ka", "ki", "ke"
   const romanUrdu = [
-    "mera","meri","mujhe","kya","kaise","karna","nahi","aap","wala",
-    "raha","rahi","gaya","kiya","masla","kiraya","talaq","naukri",
-    "zameen","chori","dhoka","makan","shadi","bachay","nikah","sawaal",
-    "batao","chahiye","hota","hoti","mere","teri","tere","hamara","apna",
-    "lekin","agar","bhi","sirf","hum","tum","woh","yeh","koi","sab",
-    "krna","kro","kren","bhai","poochna","haan","theek","acha","shukriya",
-    "krein","krain","krdo","hoga","hogi","hun","hoon","mein","hain","hai",
-    "krha","krhe","nahin","hona","lagta","lagti","chahta","chahti"
+    // Pronouns & possessives
+    "mera","meri","mere","mujhe","mujko","aap","apka","apki","apna","apni",
+    "hum","hamara","hamari","tum","teri","tere","tumhara","woh","wo","unka",
+    "uska","uski","yeh","ye","inki","inke",
+    // Verbs & verb forms
+    "karna","karo","karo","krna","kro","kren","krein","krain","krdo","krha",
+    "krhe","krta","krte","krein","kar","kiya","gaya","raha","rahi","hona",
+    "hota","hoti","hoga","hogi","hai","hain","hun","hoon","tha","thi","the",
+    "chahiye","chahta","chahti","lagta","lagti","batao","bata","bolo","dena",
+    "lena","deta","deti","leta","leti","rehna","rehta","rehti","jaana",
+    "aana","poochna","samajhna","dekho","suno","dekha","suna","hua","hui",
+    "derha","derhi","deta","milna","milta",
+    // Questions & connectors
+    "kya","kaise","kyun","kahan","kaun","kab","kitna","kitni","konsa","konsi",
+    "lekin","agar","bhi","sirf","sab","koi","phir","abhi","pehle","baad",
+    "isliye","tabhi","matlab","zaroor","bilkul","shayad","aksar","kabhi",
+    // Common nouns (unambiguous)
+    "masla","kiraya","talaq","naukri","zameen","makan","shadi","nikah",
+    "sawaal","bhai","dhoka","chori","bachay","muqadma","adalat","vakeel",
+    "qanoon","police","fir","zyada","thoda","sath","dono","wala","wali",
+    // Greetings & affirmations
+    "haan","nahin","nahi","theek","acha","shukriya","shukria","yaar","yr",
+    "bt","bta","pta","lgta","puch","pooch","smjho","btao",
   ];
   const words = t.split(/\s+/);
   const hits = words.filter(w => romanUrdu.includes(w)).length;
-  return hits >= 3 ? "roman-ur" : "en";
+  return hits >= 2 ? "roman-ur" : "en";
 };
 
 

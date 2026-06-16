@@ -158,7 +158,21 @@ export const STRINGS = {
 export const detectTextLang = (text) => {
   if (/[؀-ۿ]/.test(text)) return "ur";
   const t = text.toLowerCase();
-  const romanUrdu = ["mera","meri","mujhe","kya","hai","kaise","karna","nahi","aap","mein","hain","wala","kar","raha","rahi","gaya","kiya","masla","kiraya","talaq","naukri","zameen","chori","dhoka","makan","shadi","bachay","nikah","sawaal","batao","chahiye","hota","hoti","maalik","bina","notice","barha"];
+  const romanUrdu = [
+    "mera","meri","mere","mujhe","mujko","aap","apka","apki","apna","apni",
+    "hum","hamara","tum","teri","tere","woh","wo","uska","uski","yeh","ye",
+    "karna","karo","krna","kro","krdo","krha","krhe","krta","krte","kar",
+    "kiya","gaya","raha","rahi","hona","hota","hoti","hoga","hogi",
+    "hai","hain","hun","hoon","tha","thi","chahiye","chahta","chahti",
+    "lagta","lagti","batao","bata","bolo","dena","lena","rehna","rehta",
+    "hua","hui","derha","milna","milta","dekho","suno",
+    "kya","kaise","kyun","kahan","kaun","kab","kitna","kitni",
+    "lekin","agar","bhi","sirf","sab","koi","phir","abhi","pehle","baad",
+    "isliye","matlab","zaroor","bilkul","shayad","aksar",
+    "masla","kiraya","talaq","naukri","zameen","makan","shadi","nikah",
+    "sawaal","bhai","dhoka","chori","maalik","vakeel","qanoon","fir",
+    "haan","nahin","nahi","theek","acha","yaar","yr","bt","bta","pta","lgta",
+  ];
   const words = t.split(/\s+/);
   const hits = words.filter((w) => romanUrdu.includes(w)).length;
   return hits >= 2 ? "roman-ur" : "en";
